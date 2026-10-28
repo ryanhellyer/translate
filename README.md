@@ -2,6 +2,10 @@
 
 Repo for the translation tool at [translate.hellyer.kiwi](https://translate.hellyer.kiwi).
 
+Plain PHP, HTML, CSS and JavaScript — no build step, no dependencies. The
+browser code is hand-written in `public/scripts.js`, so what is in the tree is
+what runs.
+
 The page calls the AI API over AJAX as you type:
 
 ```
@@ -11,12 +15,14 @@ POST {api}/v1/translations
 ```
 
 `from` / `to` are the API's English language names (the UI works in two-letter
-codes and maps them via `apiName()` in `src/translator/languages.ts`), and
-`tone` is the writing style, omitted when none is chosen.
+codes and maps them via `apiName()` in `public/scripts.js`), and `tone` is the
+writing style, omitted when none is chosen.
 
-The API base URL lives on the translator card as `data-api-base`
-(`templates/home.php`), so the local dev API and production can differ without
-a rebuild. It defaults to `https://ai.hellyer.test`.
+The API base URL comes from `data-api-base` on the translator card. The front
+controller (`public/index.php`) fills it from the `TRANSLATE_API_BASE`
+environment variable, defaulting to the production API. So production needs no
+configuration, and a dev host sets `TRANSLATE_API_BASE=https://ai.hellyer.test`
+(in the vhost, or before `php -S`) without touching code.
 
 ## Running locally
 
@@ -51,56 +57,26 @@ both:
 In production both are already satisfied: `ai.hellyer.kiwi` has a valid
 certificate and (should) allow `https://translate.hellyer.kiwi` as an origin.
 
-### End-to-end check
-
-`.e2e.cjs` drives the page in headless Chromium, ignoring the certificate and
-injecting the CORS headers a correctly configured API would send, so it can
-verify the app's own AJAX path independently of the server gap:
+## Deploying
 
 ```
-node .e2e.cjs
+./deploy.sh
 ```
 
-Set `NO_CORS_SHIM=1` to see the raw browser behaviour instead.
+`deploy.sh` rsyncs the tree and runs the post-deploy steps. There is no build:
+`public/scripts.js` is source, and it ships as-is. The script ends by checking
+that the served `scripts.js` matches the tree, so a stale deploy is caught
+rather than discovered in the browser console.
 
-## Building
-
-The browser code lives in `src/` as TypeScript and is compiled into
-`public/scripts.js`, which is gitignored build output.
-
-```
-./build.sh          # install deps if needed, type-check, compile and bundle
-./build.sh --check  # type-check only
-```
-
-`build.sh` needs Node.js, npm and a C toolchain (npm's bundled releases use
-native modules):
+## Tests
 
 ```
-sudo apt-get install -y nodejs npm build-essential
+node .verify.cjs      # UI suite (stubs the API)
+node .e2e-api.cjs     # AJAX translation path, against a stubbed API
+node .e2e.cjs         # AJAX translation path, against the live dev API
 ```
 
-It also builds `public/vendor.js` once, from `node_modules`, holding tsyringe
-and reflect-metadata as plain scripts. Re-run it (`rm public/vendor.js`) after
-upgrading those libraries. Both templates load it before `scripts.js`.
-
-### On the server
-
-`build-server.sh` compiles the same `src/` on the web server, where npm is not
-used: it needs Node.js and any TypeScript compiler (`tsc` on `PATH`, a
-`node_modules/typescript` copy, `$TSC`, or `npx`). `deploy.sh` runs it after
-the upload and ships `src/` instead of `scripts.js`, so the served bundle
-always matches the deployed source.
-
-### Tests
-
-```
-node .verify.cjs          # UI suite (stubs the API)
-node .e2e-api.cjs         # AJAX translation path, against a stubbed API
-./scripts/verify-bundler.sh
-```
-
-The first two need the site served on `http://127.0.0.1:8099` (for example
+These need the site served on `http://127.0.0.1:8099` (for example
 `cd public && php -S 127.0.0.1:8099 index.php`) and Playwright's Chromium.
 
 Work in progress.

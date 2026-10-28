@@ -13,7 +13,7 @@ $templates = __DIR__ . '/../templates';
  * It defaults to the production API and is overridden on a development host
  * by setting TRANSLATE_API_BASE (in the vhost, or a shell export before
  * `php -S`), so the local dev API is never deployed by accident. The card
- * carries it as data-api-base; see src/translator/app.ts.
+ * carries it as data-api-base; see the translation section of scripts.js.
  */
 $api_base = getenv('TRANSLATE_API_BASE') ?: 'https://ai.hellyer.kiwi';
 

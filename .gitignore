@@ -1,20 +1,8 @@
-# --- Dependencies ---
-node_modules/
-vendor/
-
 # --- Local environment / secrets ---
 # deploy.sh already excludes these from rsync; keep them out of git too.
 .env
 .env.*
 !.env.example
-
-# --- TypeScript build output ---
-# `npm run clean` (tsconfig outDir) and any intermediate emit land here.
-# The server may compile TS itself soon, so this is build output, not source.
-dist/
-
-# TypeScript incremental build cache.
-*.tsbuildinfo
 
 # --- Logs and runtime junk ---
 *.log
@@ -32,6 +20,3 @@ Thumbs.db
 # --- PHP tooling caches (if added later) ---
 .phpunit.result.cache
 .php-cs-fixer.cache
-
-
-#public/scripts.js

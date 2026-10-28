@@ -99,7 +99,6 @@
 	<p>translate.hellyer.kiwi &mdash; translations by <a href="https://ai.hellyer.kiwi">ai.hellyer.kiwi</a> &mdash; <a href="https://ryan.hellyer.kiwi/">ryan.hellyer.kiwi</a></p>
 </footer>
 
-<script src="/vendor.js"></script>
 <script src="/scripts.js"></script>
 
 </body>
