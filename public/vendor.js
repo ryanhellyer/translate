@@ -2307,6 +2307,7 @@ var instance = new InternalDependencyContainer();
 
 
 // ---------- decorators/auto-injectable ----------
+const globalContainer = instance;
 function autoInjectable() {
     return function (target) {
         var paramInfo = getParamInfo(target);
@@ -2506,14 +2507,12 @@ const predicateAwareClassFactory = function predicateAwareClassFactory(predicate
 
 
 // ---------- index ----------
+const container = instance;
 if (typeof Reflect === "undefined" || !Reflect.getMetadata) {
     throw new Error("tsyringe requires a reflect polyfill. Please add 'import \"reflect-metadata\"' to the top of your entry point.");
 }
 
 
-// ---------- module exports ----------
-const globalContainer = instance;
-const container = instance;
 // ---------- globals ----------
 // The app script is bundled separately, so it needs these on the global
 // object rather than in this IIFE's scope.

@@ -107,6 +107,17 @@ if [ ! -f public/vendor.js ]; then
     exit 1
 fi
 
+# vendor.js is built on the development machine (it needs npm), so the server
+# only receives it. Check it parses before going further: a stale copy used to
+# ship silently and take the whole page down with a SyntaxError that looked
+# like an unrelated app bug.
+if ! node --check public/vendor.js; then
+    echo "x public/vendor.js does not parse. It was built by an older toolchain." >&2
+    echo "  Rebuild it with ./scripts/build-vendor.sh on a development machine and" >&2
+    echo "  deploy the tree again." >&2
+    exit 1
+fi
+
 echo "Compiling ${SRC_DIR}/ to ${OUT_DIR}/..."
 rm -rf "${OUT_DIR}"
 run_tsc --project tsconfig.json

@@ -76,9 +76,13 @@ rm -rf "${OUT_DIR}"
 "${TSC[@]}" --project tsconfig.json
 
 # The libraries (tsyringe, reflect-metadata) change only when they are upgraded,
-# so their bundle is built once and left alone after that.
+# so their bundle is built once and left alone after that. It is rebuilt when a
+# source of it is newer, or when the existing copy does not parse — the latter
+# catches a vendor.js left behind by an older toolchain, whose timestamps can
+# look up to date while the file is actually broken.
 if [ ! -f public/vendor.js ] || [ package-lock.json -nt public/vendor.js ] ||
-    [ scripts/bundle.mjs -nt public/vendor.js ] || [ scripts/build-vendor.sh -nt public/vendor.js ]; then
+    [ scripts/bundle.mjs -nt public/vendor.js ] || [ scripts/build-vendor.sh -nt public/vendor.js ] ||
+    ! node --check public/vendor.js >/dev/null 2>&1; then
     echo "Building public/vendor.js..."
     "${ROOT}/scripts/build-vendor.sh"
 fi

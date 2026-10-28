@@ -1980,5 +1980,4 @@ TranslatorApp.startIfPresent();
 ErrorPageApp.startIfPresent();
 
 
-// ---------- module exports ----------
 }());

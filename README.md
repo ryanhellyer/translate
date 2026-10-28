@@ -65,9 +65,42 @@ Set `NO_CORS_SHIM=1` to see the raw browser behaviour instead.
 
 ## Building
 
+The browser code lives in `src/` as TypeScript and is compiled into
+`public/scripts.js`, which is gitignored build output.
+
 ```
-./build.sh          # type-check, compile and bundle to public/scripts.js
+./build.sh          # install deps if needed, type-check, compile and bundle
 ./build.sh --check  # type-check only
 ```
+
+`build.sh` needs Node.js, npm and a C toolchain (npm's bundled releases use
+native modules):
+
+```
+sudo apt-get install -y nodejs npm build-essential
+```
+
+It also builds `public/vendor.js` once, from `node_modules`, holding tsyringe
+and reflect-metadata as plain scripts. Re-run it (`rm public/vendor.js`) after
+upgrading those libraries. Both templates load it before `scripts.js`.
+
+### On the server
+
+`build-server.sh` compiles the same `src/` on the web server, where npm is not
+used: it needs Node.js and any TypeScript compiler (`tsc` on `PATH`, a
+`node_modules/typescript` copy, `$TSC`, or `npx`). `deploy.sh` runs it after
+the upload and ships `src/` instead of `scripts.js`, so the served bundle
+always matches the deployed source.
+
+### Tests
+
+```
+node .verify.cjs          # UI suite (stubs the API)
+node .e2e-api.cjs         # AJAX translation path, against a stubbed API
+./scripts/verify-bundler.sh
+```
+
+The first two need the site served on `http://127.0.0.1:8099` (for example
+`cd public && php -S 127.0.0.1:8099 index.php`) and Playwright's Chromium.
 
 Work in progress.

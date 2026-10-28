@@ -74,7 +74,27 @@ if [ -f "${SCRIPT_DIR}/composer.json" ]; then
     echo "OK Remote composer found"
 fi
 
+# The browser bundle is compiled on the server, so Node.js must resolve there
+# too - but only when this app actually builds a bundle.
+if [ -f "${SCRIPT_DIR}/build-server.sh" ]; then
+    if ! ssh "${PROD_HOST}" "${REMOTE_PATH} && command -v node >/dev/null"; then
+        echo "" >&2
+        echo "x Preflight FAILED: build-server.sh present but node not found on ${PROD_HOST}." >&2
+        echo "  node:      $(ssh "${PROD_HOST}" "${REMOTE_PATH} && command -v node" 2>/dev/null || echo 'NOT FOUND')" >&2
+        echo "  The bundle is compiled on the server during deploy, so Node.js and" >&2
+        echo "  a TypeScript compiler must be installed there:" >&2
+        echo "    ssh ${PROD_HOST} 'sudo apt-get install -y nodejs && sudo npm install -g typescript'" >&2
+        exit 1
+    fi
+    echo "OK Remote node found"
+fi
+
+# public/scripts.js is gitignored build output, so the copy on the deploying
+# machine may be stale (built from older source or an older tsconfig). It is
+# rebuilt on the server below from the src/ that was just pushed, so exclude
+# it here and never ship a bundle that does not match the source.
 rsync -avz --delete "${EXCLUDES[@]}" \
+    --exclude='public/scripts.js' \
     "${SCRIPT_DIR}/" \
     "${PROD_HOST}:${PROD_PATH}"
 
@@ -86,12 +106,21 @@ echo "Running post-deploy commands..."
 
 REMOTE_STEPS="cd ${PROD_PATH}"
 
-# 1. Composer dependencies — only when the app actually has a composer.json.
+# 1. Rebuild the browser bundle from the src/ that was just pushed. This is
+#    why public/scripts.js is excluded from the rsync: the bundle is build
+#    output, and shipping a stale one (compiled from older source, or an older
+#    tsconfig) is how a deploy ends up serving code that does not match the
+#    repo. build-server.sh needs only tsc, which the preflight confirmed.
+if [ -f "${SCRIPT_DIR}/build-server.sh" ]; then
+    REMOTE_STEPS="${REMOTE_STEPS} && ./build-server.sh"
+fi
+
+# 2. Composer dependencies — only when the app actually has a composer.json.
 if [ -f "${SCRIPT_DIR}/composer.json" ]; then
     REMOTE_STEPS="${REMOTE_STEPS} && composer install --no-dev --optimize-autoloader"
 fi
 
-# 2. Reset the opcode cache so the new files are picked up. Harmless if opcache
+# 3. Reset the opcode cache so the new files are picked up. Harmless if opcache
 #    is not enabled; guarded with function_exists so it cannot error.
 REMOTE_STEPS="${REMOTE_STEPS} && php -r 'if (function_exists(\"opcache_reset\")) { opcache_reset(); }'"
 
@@ -100,6 +129,12 @@ if ! ssh "${PROD_HOST}" "${REMOTE_PATH} && ${REMOTE_STEPS}"; then
     echo "x Post-deploy commands FAILED on ${PROD_HOST}." >&2
     echo "  Re-run the failing step by hand to see the full error:" >&2
     echo "    ssh ${PROD_HOST} '${REMOTE_PATH} && cd ${PROD_PATH} && <command>'" >&2
+    if [ -f "${SCRIPT_DIR}/build-server.sh" ]; then
+        echo "" >&2
+        echo "  The bundle is compiled on the server. If the failure came from" >&2
+        echo "  build-server.sh, run it by itself to see why:" >&2
+        echo "    ssh ${PROD_HOST} '${REMOTE_PATH} && cd ${PROD_PATH} && ./build-server.sh'" >&2
+    fi
     exit 1
 fi
 

@@ -1,11 +1,11 @@
 #!/bin/bash
 #
-# Checks that scripts/bundle.awk turns a set of ES modules into a working
+# Checks that the bundler turns a set of ES modules into a working
 # classic script: every exported name resolves, exports are aliased correctly,
 # and class names survive.
 #
-# Run it after changing the bundler. It needs node (to compile and run the
-# fixture) but no browser.
+# Run it after changing the bundler (scripts/bundle.mjs). It needs node but no
+# browser.
 
 set -euo pipefail
 
@@ -67,8 +67,7 @@ export function main(probe) {
 }
 JS
 
-BUNDLE_ROOT="${STAGE}/src" BUNDLE_ENTRY="main.js" BUNDLE_OUT="${STAGE}/out.js" \
-    awk -f "${ROOT}/scripts/bundle.awk"
+node "${ROOT}/scripts/bundle.mjs" "${STAGE}/src" "main.js" "${STAGE}/out.js"
 
 node --check "${STAGE}/out.js"
 

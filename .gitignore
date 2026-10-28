@@ -34,4 +34,4 @@ Thumbs.db
 .php-cs-fixer.cache
 
 
-public/scripts.js
+#public/scripts.js

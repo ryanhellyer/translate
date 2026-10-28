@@ -13,7 +13,7 @@
 		"noEmitOnError": true,
 		"verbatimModuleSyntax": true,
 		"isolatedModules": true,
-		"experimentalDecorators": false,
+		"experimentalDecorators": true,
 		"emitDecoratorMetadata": true,
 		"outDir": "dist",
 		"sourceMap": false,

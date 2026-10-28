@@ -13,8 +13,13 @@
  *     reflection and stack traces;
  *   - "export const/let/var/function" simply loses the keyword;
  *   - "export default ..." keeps its named binding;
- *   - re-export lists become one-line aliases ("const container = instance")
- *     after every declaration has been emitted.
+ *   - re-export lists become one-line aliases ("const container = instance.");
+ *
+ * Aliases are emitted with the module that needs them, immediately after that
+ * module's declarations and before anything that follows. They cannot wait
+ * until the end of the bundle: "class Thing extends BaseClass" evaluates the
+ * superclass as soon as the class is defined, so an alias declared after it
+ * would be in the temporal dead zone.
  *
  * Modules are emitted in dependency order, starting from the entry and
  * following its imports depth-first: a const or class is hoisted but not
@@ -183,6 +188,8 @@ function moduleDefault(name) {
 	return name.replace(/[^A-Za-z0-9_$].*$/, '');
 }
 
+/** Every alias already declared, so a name imported by several modules is
+    only ever declared once. */
 const declared = new Map();
 
 /** Emits "const target = source" unless both names are the same. */
@@ -228,12 +235,13 @@ function emitAliases(name) {
 
 for (const name of order) {
 	outputLines.push(`// ---------- ${name} ----------`);
+	/* Aliases first: in a real module the imports are bound before the
+	   module body runs, so a class may extend an aliased import. */
+	emitAliases(name);
 	emitDeclarations(name);
 	outputLines.push('');
 }
 
-outputLines.push('// ---------- module exports ----------');
-for (const name of order) emitAliases(name);
 outputLines.push('}());');
 
 const temporary = `${output}.tmp`;

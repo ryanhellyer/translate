@@ -18,6 +18,23 @@ function check(name, ok, detail = '') {
 		if (m.type() === 'error' && !/ERR_CERT_AUTHORITY_INVALID/.test(m.text())) errors.push(m.text());
 	});
 
+	/* The page translates through the AI API; stub it so this suite tests the
+	   UI rather than the network. The AJAX path has its own check. */
+	await page.route('**/v1/translations', async (route) => {
+		const cors = {
+			'access-control-allow-origin': '*',
+			'access-control-allow-headers': '*',
+			'access-control-allow-methods': 'POST, OPTIONS'
+		};
+		if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors, body: '' });
+		const body = route.request().postDataJSON();
+		return route.fulfill({
+			status: 200,
+			headers: { ...cors, 'content-type': 'application/json' },
+			body: JSON.stringify({ translation: `[${body.to}] ${body.text}` })
+		});
+	});
+
 	await page.goto(BASE + '/', { waitUntil: 'networkidle' });
 
 	check('theme initialised', (await page.getAttribute('html', 'data-theme')) === 'light');
@@ -61,8 +78,9 @@ function check(name, ok, detail = '') {
 	check('clear button shown', await page.isVisible('#clear-btn'));
 	await page.fill('.panel.source textarea', 'x'.repeat(4600));
 	check('counter warns near limit', (await page.getAttribute('.panel.source .char-count', 'class')).includes('warn'));
-	await page.evaluate(() => { document.querySelector('.panel.target .translation').textContent = 'Hallo'; });
+	await page.fill('.panel.source textarea', 'x');
 	await page.fill('.panel.source textarea', '');
+	await page.waitForFunction(() => document.querySelector('.panel.target .translation').textContent === '', null, { timeout: 5000 });
 	check('empty input clears output', (await page.textContent('.panel.target .translation')) === '');
 	check('listen disabled with no output', await page.isDisabled('#listen-btn'));
 	check('copy disabled with no output', await page.isDisabled('#copy-btn'));
@@ -86,10 +104,11 @@ function check(name, ok, detail = '') {
 
 	/* Speech: headless Chromium has no voices, so the honest message appears. */
 	await page.fill('.panel.source textarea', 'Hi');
-	await page.evaluate(() => {
-		document.querySelector('.panel.target .translation').textContent = 'Hallo';
-		document.querySelector('.panel.source textarea').dispatchEvent(new Event('input'));
-	});
+	await page.waitForFunction(
+		() => document.querySelector('.panel.target .translation').textContent !== '',
+		null,
+		{ timeout: 5000 }
+	);
 	await page.click('#listen-btn');
 	check('speech reports clearly', /voice|read text aloud/.test(await page.textContent('#toast')), await page.textContent('#toast'));
 
