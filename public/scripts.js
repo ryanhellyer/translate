@@ -37,9 +37,12 @@
 	})();
 
 	/* Translator UI: languages, swapping, writing style, copy and offline speech.
-	   There is still no translation engine; the output text is a placeholder. */
+	   There is still no translation engine; the output text is a placeholder.
+	   Runs only on the home page; other templates omit the translator card. */
 	(function () {
 		'use strict';
+
+		if (!document.querySelector('.translator-card')) return;
 
 		var LANGS = {
 			auto: {
@@ -1056,3 +1059,233 @@
 			textarea.focus({ preventScroll: true });
 		}
 	})();
+
+/* ==========================================================================
+   Error page
+   Only runs when the error card is present, so this file can be shared
+   by every template.
+   ========================================================================== */
+if (document.getElementById('status-code')) {
+		/* ------------------------------------------------------------------
+		   Error copy.
+
+		   The router in public/index.php serves this template for any path
+		   other than "/", but the status code reaches the browser separately,
+		   in order of preference:
+
+		     1. ?code=404  (or ?status=404) in the query string
+		     2. #404 in the fragment
+		     3. a same-origin cookie named "error_code" (e.g. set by nginx
+		        error_page, or by an upstream 5xx pass-through)
+		     4. Referer / original URL guessing, for hosts that keep the old
+		        path in a redirect fragment or query
+
+		   Anything unrecognised falls back to a plain 404 — the one error
+		   every site can be relied upon to produce.
+		   ------------------------------------------------------------------ */
+		(function () {
+			'use strict';
+
+			var MESSAGES = {
+				400: {
+					category: 'Bad Request',
+					title: 'We couldn\u2019t parse that.',
+					joke: 'The browser asked for something in a language this server doesn\u2019t speak. Grammar, mostly.',
+					advice: 'Check the address for stray characters, half-finished query strings, or a copy-paste that lost a limb on the way over.'
+				},
+				401: {
+					category: 'Unauthorized',
+					title: 'You shall not pass.',
+					joke: 'This page wants a password, and frankly it\u2019s being dramatic about it.',
+					advice: 'Sign in first, then knock again. If you were already signed in, your session has quietly wandered off.'
+				},
+				403: {
+					category: 'Forbidden',
+					title: 'Nothing to see here.',
+					joke: 'The page exists. It just doesn\u2019t want to be seen with you. It\u2019s not personal, it\u2019s policy.',
+					advice: 'If you\u2019re certain you should have access, ask whoever controls the keys. Politely. With cake.'
+				},
+				404: {
+					category: 'Not Found',
+					title: 'This page is lost in translation.',
+					joke: 'The address you asked for doesn\u2019t exist here. We looked. We even checked behind the sofa.',
+					advice: 'It may have been moved, renamed, or never existed in the first place \u2014 which, in fairness, is a lot to expect from a design mock-up.'
+				},
+				405: {
+					category: 'Method Not Allowed',
+					title: 'Wrong verb.',
+					joke: 'You knocked with the wrong hand. This page accepts one kind of request and you brought another.',
+					advice: 'This is almost always a form or a fetch call doing something the server didn\u2019t agree to.'
+				},
+				408: {
+					category: 'Request Timeout',
+					title: 'The server dozed off.',
+					joke: 'Your request took so long to finish its sentence that everyone stopped waiting.',
+					advice: 'Check your connection and try again. Slower sites are a thing; vanished ones usually aren\u2019t.'
+				},
+				410: {
+					category: 'Gone',
+					title: 'Gone. Properly gone.',
+					joke: 'This page didn\u2019t move, it left. No forwarding address, no note, just a dramatic exit.',
+					advice: 'Unlike a 404, this one isn\u2019t coming back. Try the home page and start over.'
+				},
+				418: {
+					category: 'I\u2019m a Teapot',
+					title: 'I\u2019m a teapot.',
+					joke: 'You asked a teapot to brew coffee. The teapot is short, stout, and not in the coffee business.',
+					advice: 'This status code is a genuine joke from 1998 that refuses to die. There is nothing to fix; enjoy it.'
+				},
+				429: {
+					category: 'Too Many Requests',
+					title: 'Slow down there.',
+					joke: 'You knocked a lot of times in a very short window. The door noticed, and mildly objected.',
+					advice: 'Wait a moment and try again. Automated tools may want to add a delay between requests.'
+				},
+				451: {
+					category: 'Unavailable For Legal Reasons',
+					title: 'Unavailable for legal reasons.',
+					joke: 'This page has been redacted by someone with a lawyer and a red pen.',
+					advice: 'Nothing to retry here \u2014 the restriction is deliberate. Ask the site owner if you need the details.'
+				},
+				500: {
+					category: 'Internal Server Error',
+					title: 'The server tripped over its own shoelaces.',
+					joke: 'Something broke on our side. It isn\u2019t you. It\u2019s almost never you.',
+					advice: 'This one is entirely our fault. Give it a minute and try again \u2014 it may already be fixed.'
+				},
+				501: {
+					category: 'Not Implemented',
+					title: 'We never built that bit.',
+					joke: 'The server understood the request and has decided, permanently, not to have implemented it.',
+					advice: 'No amount of reloading will help. The feature simply isn\u2019t there.'
+				},
+				502: {
+					category: 'Bad Gateway',
+					title: 'The middleman dropped it.',
+					joke: 'Our gateway asked the server behind it a question and got nonsense back. Rude.',
+					advice: 'Usually brief. Reload in a moment; if it sticks around, it\u2019s on our end.'
+				},
+				503: {
+					category: 'Service Unavailable',
+					title: 'Taking a nap.',
+					joke: 'The site is up but the bit that does the actual work is having a lie-down.',
+					advice: 'This is normally a restart, a deploy, or far too much traffic. Try again shortly.'
+				},
+				504: {
+					category: 'Gateway Timeout',
+					title: 'We gave up waiting.',
+					joke: 'Our gateway waited for the server behind it, then got bored and left the room.',
+					advice: 'Reload in a moment. If it keeps timing out, the API behind this page is the thing to check.'
+				},
+				505: {
+					category: 'HTTP Version Not Supported',
+					title: 'Speaking a dialect we don\u2019t.',
+					joke: 'Your browser requested a version of HTTP this server has never heard of.',
+					advice: 'Try a current browser; if you\u2019re writing a client by hand, dial the version down.'
+				},
+				507: {
+					category: 'Insufficient Storage',
+					title: 'Run out of room.',
+					joke: 'The server tried to write something down and there was no paper left.',
+					advice: 'Almost always a disk that needs emptying. Nothing you can do from here except wait.'
+				}
+			};
+
+			var GENERIC = {
+				category: 'Something Went Wrong',
+				title: 'Something went wrong.',
+				joke: 'The server tried its best and its best wasn\u2019t quite enough.',
+				advice: 'Try again in a moment. If the problem persists, it\u2019s probably not going away on its own.'
+			};
+
+			/* Fallback categories, so an unknown code still reads sensibly. */
+			function categoryFor(code) {
+				if (code >= 400 && code < 500) return 'Client Error';
+				if (code >= 500 && code < 600) return 'Server Error';
+				return GENERIC.category;
+			}
+
+			function byId(id) { return document.getElementById(id); }
+
+			/* ---------- Work out what went wrong ---------- */
+
+			function validCode(value) {
+				var code = parseInt(value, 10);
+				return code >= 400 && code <= 599 ? code : null;
+			}
+
+			function readCookie(name) {
+				var parts = (' ' + document.cookie).split('; ' + name + '=');
+				if (parts.length < 2) return null;
+				return decodeURIComponent(parts.pop().split(';').shift());
+			}
+
+			/* Paths inside the fragment (some hosts redirect to /#/old/path)
+			   and the ?url= / ?path= / ?from= query keys all count as "requested". */
+			function readTarget(search, hash) {
+				var params = new URLSearchParams(search || '');
+				var keys = ['url', 'path', 'from', 'uri', 'requested'];
+				for (var i = 0; i < keys.length; i++) {
+					var value = params.get(keys[i]);
+					if (value) return value;
+				}
+				var fragment = (hash || '').replace(/^#\/?/, '');
+				if (fragment && !/^\d{3}$/.test(fragment)) return '/' + fragment;
+				return null;
+			}
+
+			function detect() {
+				var params = new URLSearchParams(window.location.search || '');
+
+				var code = validCode(params.get('code')) ||
+					validCode(params.get('status')) ||
+					validCode(params.get('err')) ||
+					validCode(readCookie('error_code')) ||
+					validCode((window.location.hash || '').replace(/^#\/?/, ''));
+				var target = readTarget(window.location.search, window.location.hash);
+
+				/* The router serves the error page at the requested path, so if
+				   nothing else identified it, the path we are on is the request
+				   that went wrong — unless we are somehow on the root. */
+				if (!target && window.location.pathname && window.location.pathname !== '/') {
+					target = window.location.pathname + window.location.search;
+				}
+
+				return { code: code || 404, target: target };
+			}
+
+			var found = detect();
+			var message = MESSAGES[found.code] || GENERIC;
+
+			/* ---------- Draw it ---------- */
+
+			document.title = found.code + ' ' + message.category + ' \u2014 translate.hellyer.kiwi';
+
+			byId('status-code').textContent = found.code;
+			byId('status-category').textContent = MESSAGES[found.code] ? message.category : categoryFor(found.code);
+			byId('status-title').textContent = message.title;
+			byId('status-joke').textContent = message.joke;
+			byId('status-advice').textContent = message.advice;
+
+			var shownCategory = byId('status-category').textContent;
+			byId('meta-status').textContent = found.code + ' ' + shownCategory;
+			byId('meta-url').textContent = found.target || 'Not recorded by the server \u2014 ' +
+				'add ?code= and the original path to fix that.';
+
+			var referrer = document.referrer;
+			byId('meta-referrer').textContent = referrer || 'Nothing. You arrived alone.';
+
+			try {
+				byId('meta-time').textContent = new Date().toLocaleString('en-NZ', { dateStyle: 'medium', timeStyle: 'medium' });
+			} catch (e) {
+				byId('meta-time').textContent = new Date().toString();
+			}
+
+			/* Retry: go back through history so the original URL is retried, and
+			   reload as the fallback when there is no history to walk. */
+			byId('retry-btn').addEventListener('click', function () {
+				if (window.history.length > 1) window.history.back();
+				else window.location.reload();
+			});
+		})();
+}
