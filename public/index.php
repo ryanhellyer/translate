@@ -8,6 +8,16 @@
 $templates = __DIR__ . '/../templates';
 
 /*
+ * The translation API's base URL, handed to the template as $api_base.
+ *
+ * It defaults to the production API and is overridden on a development host
+ * by setting TRANSLATE_API_BASE (in the vhost, or a shell export before
+ * `php -S`), so the local dev API is never deployed by accident. The card
+ * carries it as data-api-base; see src/translator/app.ts.
+ */
+$api_base = getenv('TRANSLATE_API_BASE') ?: 'https://ai.hellyer.kiwi';
+
+/*
  * The path the visitor asked for, without the query string. Works behind the
  * PHP built-in server, Apache and nginx alike.
  */

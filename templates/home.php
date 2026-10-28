@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<!-- v2: design-review revision of index.html. Same behaviour and data,
-     refined visuals: tinted light canvas, elevated dark header, balanced
-     language bar, tinted output panel, working clear button, honest empty
-     states, copy checkmark, near-limit counter warning, menu motion. -->
+<!-- v3: the translator now calls the AI API over AJAX as you type.
+     data-api-base on the translator card sets the API origin; the front
+     controller fills it from $api_base (production by default, overridable
+     with TRANSLATE_API_BASE on a dev host). -->
 <html lang="en-NZ">
 <head>
 <meta charset="UTF-8" />
@@ -88,7 +88,7 @@
 </header>
 
 <main>
-	<div class="translator-card">
+	<div class="translator-card" data-api-base="<?= htmlspecialchars($api_base ?? 'https://ai.hellyer.kiwi', ENT_QUOTES) ?>">
 		<div class="lang-bar">
 			<div class="lang-group" role="group" aria-label="Source language">
 				<span class="lang-tabs" id="source-tabs" aria-label="Current language pair">
@@ -177,11 +177,12 @@
 </main>
 
 <footer id="footer">
-	<p>translate.hellyer.kiwi &mdash; a design mock-up, nothing translates yet &mdash; <a href="https://ryan.hellyer.kiwi/">ryan.hellyer.kiwi</a></p>
+	<p>translate.hellyer.kiwi &mdash; translations by <a href="https://ai.hellyer.kiwi">ai.hellyer.kiwi</a> &mdash; <a href="https://ryan.hellyer.kiwi/">ryan.hellyer.kiwi</a></p>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="/vendor.js"></script>
 <script src="/scripts.js"></script>
 
 </body>

@@ -1039,6 +1039,24 @@ html[data-theme="dark"] {
 		}
 	}
 
+	/* While the API call is out, the output dims a touch and stops
+	   intercepting clicks; the text stays readable rather than blanking. */
+	.translator-card.is-translating .panel.target > .translation {
+		opacity: 0.45;
+		transition: opacity 0.2s;
+	}
+
+	/* A failed request replaces the translation with an explanation, in the
+	   error colour, so it is not mistaken for a result. */
+	.translator-card .panel.target > .translation.is-error {
+		color: var(--red);
+		font-size: clamp(15px, 1.8vw, 17px);
+	}
+
+	html[data-theme="dark"] .translator-card .panel.target > .translation.is-error {
+		color: var(--red-bright);
+	}
+
 	.toast {
 		position: fixed;
 		inset-block-end: 24px;
