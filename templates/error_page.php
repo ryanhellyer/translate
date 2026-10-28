@@ -68,19 +68,18 @@
 
 <main>
 	<div class="error-card">
-		<div class="status-code" id="status-code">404</div>
-		<p class="status-category" id="status-category">Not Found</p>
-		<h2 class="status-title" id="status-title">This page is lost in translation.</h2>
-		<p class="status-joke" id="status-joke">The address you asked for doesn't exist here. We looked. We even checked behind the sofa.</p>
-		<p class="status-advice" id="status-advice">It may have been moved, renamed, or never existed in the first place &mdash; which, in fairness, is a lot to expect from a design mock-up.</p>
-		<p class="shrug" aria-hidden="true">¯\_(ツ)_/¯</p>
+		<div id="status-code">404</div>
+		<p id="status-category">Not Found</p>
+		<h2 id="status-title">This page is lost in translation.</h2>
+		<p id="status-joke">The address you asked for doesn't exist here. We looked. We even checked behind the sofa.</p>
+		<p id="status-advice">It may have been moved, renamed, or never existed in the first place &mdash; which, in fairness, is a lot to expect from a design mock-up.</p>
+		<p aria-hidden="true">¯\_(ツ)_/¯</p>
 
-		<div class="error-actions">
-			<a class="btn btn-primary" href="/">Take me home</a>
-			<button class="btn btn-ghost" type="button" id="retry-btn">Try that address again</button>
+		<div>
+			<a href="/">Take me home</a>
+			<button type="button" id="retry-btn">Try that address again</button>
 		</div>
-
-		<details class="error-meta">
+		<details>
 			<summary>What actually happened?</summary>
 			<dl>
 				<dt>Status</dt>

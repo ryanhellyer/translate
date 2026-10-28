@@ -14,6 +14,14 @@ $templates = __DIR__ . '/../templates';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $path = '/' . ltrim(rawurldecode($path ?? '/'), '/');
 
+/*
+ * Static assets sit on disk beside this file; let the web server hand them
+ * back untouched instead of treating them as a miss.
+ */
+if ($path !== '/' && is_file(__DIR__ . $path)) {
+	return false;
+}
+
 if ($path === '/') {
 	require $templates . '/home.php';
 	return;
