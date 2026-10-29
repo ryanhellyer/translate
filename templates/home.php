@@ -17,6 +17,16 @@
 <meta property="og:url" content="https://translate.hellyer.kiwi">
 <meta name="theme-color" content="#e5122e">
 
+<link rel="icon" type="image/png" sizes="16x16" href="/icon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/icon-64x64.png">
+<link rel="icon" type="image/png" sizes="128x128" href="/icon-128x128.png">
+<link rel="apple-touch-icon" sizes="128x128" href="/icon-128x128.png">
+<link rel="image_src" href="/icon-256x256.png">
+<meta property="og:image" content="https://translate.hellyer.kiwi/icon-256x256.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://translate.hellyer.kiwi/icon-256x256.png">
+
 <script>
 	/* Use the browser's theme by default; an explicit choice wins afterwards. */
 	(function () {
