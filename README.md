@@ -45,8 +45,8 @@ npm install       # or let ./build.sh do it
 ./build.sh
 ```
 
-`./build.sh --no-install` is what `deploy.sh` runs on the server: it needs
-Node.js and either a global `tsc` or `npx`, but does not install anything.
+`./build.sh --no-install` uses only a compiler that is already installed, and
+does not touch `node_modules/`.
 
 The TypeScript is split by responsibility (`ui/`, `translator/`, `error/`).
 Dependencies are passed through constructors and wired together in
@@ -99,15 +99,16 @@ certificate and (should) allow `https://translate.hellyer.kiwi` as an origin.
 ./deploy.sh
 ```
 
-`deploy.sh` rsyncs the tree and runs the post-deploy steps. It excludes
-`public/js/` from the upload and runs `./build.sh --no-install` on the server,
-so the served modules are always compiled from the source that was just
-deployed. A failed build aborts the deploy before the smoke test.
+`deploy.sh` builds `src/` locally first, then rsyncs the tree (including the
+fresh `public/js/`) and runs the post-deploy steps. Building before the upload
+means a broken build aborts the deploy before anything is copied, and the host
+only needs PHP — no Node.js, no compiler. The compiled modules are shipped, so
+the served code always matches the source that was just deployed.
 
 The script ends by checking that every compiled module is served, that the home
-page loads `/js/main.js`, and that the served `main.js` matches the file the
-server built. A stale deploy is caught there rather than discovered in the
-browser console.
+page loads `/js/main.js`, and that the served `main.js` matches the file that was
+uploaded. A stale deploy is caught there rather than discovered in the browser
+console.
 
 ## Tests
 

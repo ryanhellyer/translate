@@ -1103,9 +1103,11 @@ html[data-theme="dark"] {
 
 	@media (max-width: 768px) {
 
+		/* Full-bleed, like a native app: the card frame makes way for the
+		   page itself, which scrolls as the boxes grow. */
 		body > main {
-			align-items: flex-start;
-			padding: 24px 16px;
+			align-items: stretch;
+			padding: 0;
 		}
 
 		body > header .wrapper {
@@ -1122,54 +1124,167 @@ html[data-theme="dark"] {
 			block-size: 28px;
 		}
 
+		.translator-card {
+			display: flex;
+			flex-direction: column;
+			min-block-size: calc(100dvh - 56px);
+			max-inline-size: none;
+			border-inline: 0;
+			border-radius: 0;
+			box-shadow: none;
+
+			&::before {
+				display: none;
+			}
+		}
+
+		/* --- Language row: source name · swap · target name --- */
+
+		.translator-card .lang-bar {
+			padding-inline: 4px;
+		}
+
 		.translator-card .lang-bar > .lang-group {
-			padding: 8px 12px;
+			justify-content: center;
+			padding: 2px 6px;
+
+			&:first-child {
+				padding-inline-end: 6px;
+			}
 
 			&:nth-of-type(2) {
-				padding-inline-start: 40px;
+				padding-inline-start: 6px;
+				border-inline-start: 0;
 			}
 
-			& > .lang-tabs > button {
-				padding: 6px 10px;
-				font-size: 13px;
+			& > .lang-tabs {
+				justify-content: center;
+
+				& > button {
+					max-inline-size: 40vw;
+					padding: 12px 4px;
+					border-radius: 8px;
+					background: transparent;
+					font-size: 16px;
+					font-weight: 700;
+					color: var(--accent);
+
+					&:hover {
+						background: transparent;
+						color: var(--accent);
+						opacity: 0.72;
+					}
+				}
 			}
 
+			/* One name per side on a phone; no desktop chevron. */
 			& > .lang-select {
-				inline-size: 30px;
-				block-size: 30px;
+				display: none;
+			}
+		}
+
+		.translator-card #source-tabs > .lang-tab.into,
+		.translator-card #target-tabs > .lang-tab.from {
+			display: none;
+		}
+
+		/* Both visible names are plain labels here, not desktop pills. */
+		.translator-card .lang-bar > .lang-group #source-tabs > button.lang-tab.from,
+		.translator-card .lang-bar > .lang-group #target-tabs > button.lang-tab.into {
+			background: transparent;
+			color: var(--accent);
+
+			&:active {
+				opacity: 0.6;
+			}
+		}
+
+		/* The swap is just its glyph between the names, as on mobile Google
+		   Translate, and stays horizontal while the panels stack. */
+		.translator-card .lang-bar > button {
+			inline-size: 44px;
+			block-size: 44px;
+			border: 0;
+			background: transparent;
+			color: var(--text-muted);
+
+			&:hover {
+				border: 0;
+				background: transparent;
+				color: var(--accent);
+				transform: translate(-50%, -50%);
+			}
+
+			& svg {
+				transform: none;
 			}
 		}
 
 		.translator-card .lang-bar > .lang-menu {
-			max-block-size: min(65vh, 520px);
+			inset-inline: 12px;
+			inline-size: auto;
+			max-block-size: min(70vh, 520px);
+			transform: none;
 		}
 
-		.translator-card .lang-bar > button {
-			inline-size: 36px;
-			block-size: 36px;
-
-			/* Panels stack vertically here, so the swap glyph points that way. */
-			& svg {
-				transform: rotate(90deg);
-			}
-		}
+		/* --- Source box, then the result once there is one --- */
 
 		.translator-card .panels {
 			grid-template-columns: 1fr;
 
 			& > .panel {
-				min-block-size: 240px;
-				padding: 20px 20px 12px;
+				min-block-size: 0;
+				padding: 16px 18px 10px;
 
 				& + .panel {
 					border-inline-start: 0;
-					border-top: 1px solid var(--surface-border);
+					border-block-start: 1px solid var(--surface-border);
 				}
 
 				& textarea {
+					flex: 0 0 auto;
 					min-block-size: 150px;
+					overflow: hidden;
+					font-size: 18px;
+					line-height: 1.5;
+					resize: none;
+				}
+
+				& > p {
+					font-size: 18px;
+					line-height: 1.5;
 				}
 			}
+		}
+
+		/* The clear button moves to the top corner of the source box. */
+		.translator-card .panel.source {
+			position: relative;
+
+			& textarea {
+				padding-inline-end: 40px;
+			}
+
+			& > .panel-footer {
+				margin-block-start: 8px;
+			}
+
+			& .panel-actions {
+				position: absolute;
+				inset-block-start: 8px;
+				inset-inline-end: 8px;
+				margin-inline-start: 0;
+			}
+		}
+
+		/* Nothing below the source until a translation exists; then the
+		   result slides into place. */
+		.translator-card .panels > .panel.target:not(.has-output) {
+			display: none;
+		}
+
+		.translator-card .panels > .panel.target.has-output {
+			animation: panel-in 0.2s ease-out;
 		}
 
 		.error-card {
@@ -1185,25 +1300,21 @@ html[data-theme="dark"] {
 		}
 
 		.translator-card .lang-bar > .lang-group {
-			padding: 8px;
-			gap: 2px;
+			padding-inline: 2px;
+			gap: 0;
 
 			&:first-child {
-				padding-inline-end: 26px;
+				padding-inline-end: 2px;
 			}
 
 			&:nth-of-type(2) {
-				padding-inline-start: 26px;
+				padding-inline-start: 2px;
 			}
 
 			& > .lang-tabs > button {
-				max-inline-size: 34vw;
-				padding: 6px 8px;
-				font-size: 12.5px;
-			}
-
-			& > .lang-select {
-				margin-inline-start: 16px;
+				max-inline-size: 40vw;
+				padding-inline: 2px;
+				font-size: 15px;
 			}
 		}
 
@@ -1263,6 +1374,21 @@ html[data-theme="dark"] {
 	from {
 		opacity: 0;
 		translate: 0 -6px;
+	}
+
+	to {
+		opacity: 1;
+		translate: 0 0;
+	}
+
+}
+
+/* The result panel arriving under the source box on mobile. */
+@keyframes panel-in {
+
+	from {
+		opacity: 0;
+		translate: 0 -8px;
 	}
 
 	to {

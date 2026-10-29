@@ -94,6 +94,7 @@ export class TranslatorController {
 
 		this.render();
 		this.view.focusInvitation();
+		void document.fonts.ready.then(() => this.view.autoSizeInput());
 
 		/* Translate whatever is in the box now; any restored output above
 		   stays on screen until the fresh one arrives. */
@@ -107,7 +108,16 @@ export class TranslatorController {
 
 		view.swapButton.addEventListener('click', () => this.swap());
 		for (const tab of view.languageTabs) {
-			tab.addEventListener('click', () => this.swap());
+			tab.addEventListener('click', () => {
+				/* Stacked: each visible name opens its own language list,
+				   Google-style. Desktop keeps the old swap-on-click tabs. */
+				if (!view.isStacked) {
+					this.swap();
+					return;
+				}
+				const side: Side = tab.closest('#target-tabs') ? 'target' : 'source';
+				this.toggleMenu(side);
+			});
 		}
 
 		view.copyButton.addEventListener('click', () => void this.copyTranslation());
@@ -115,10 +125,17 @@ export class TranslatorController {
 		view.listenButton.addEventListener('click', () => this.toggleSpeech());
 
 		view.textarea.addEventListener('input', () => {
+			view.autoSizeInput();
 			view.updateCounter();
 			view.updateActionButtons();
 			this.save();
 			this.scheduleTranslation();
+		});
+
+		window.addEventListener('resize', () => {
+			view.autoSizeInput();
+			this.renderLabels();
+			this.syncMenuState();
 		});
 
 		for (const side of ['source', 'target'] as const) {
@@ -134,6 +151,7 @@ export class TranslatorController {
 			const target = event.target;
 			if (!(target instanceof Element)) return;
 			if (target.closest('.lang-menu') || target.closest('.lang-select')) return;
+			if (view.isStacked && target.closest('.lang-tab')) return;
 			this.closeMenus();
 		});
 
@@ -157,6 +175,7 @@ export class TranslatorController {
 			this.menus[side].refresh();
 		}
 		this.view.renderStyles(this.state);
+		this.view.autoSizeInput();
 		this.view.updateCounter();
 		this.view.updateActionButtons();
 	}
@@ -189,11 +208,20 @@ export class TranslatorController {
 		const wasOpen = menu.isOpen;
 		this.closeMenus();
 		if (!wasOpen) menu.open();
+		this.syncMenuState();
 	}
 
 	private closeMenus(): void {
 		this.menus.source.close();
 		this.menus.target.close();
+		this.syncMenuState();
+	}
+
+	/** Keeps aria-expanded on the visible language names in step with the menus. */
+	private syncMenuState(): void {
+		for (const side of ['source', 'target'] as const) {
+			this.view.markMenuExpanded(side, this.menus[side].isOpen);
+		}
 	}
 
 	private swap(): void {

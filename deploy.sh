@@ -8,9 +8,13 @@
 # It makes no assumptions about a framework: no console binary, no migrations.
 # Composer is run only if the app actually has a composer.json.
 #
-# The browser code is TypeScript in src/. It is compiled on the server after the
-# upload, so the modules the browser loads always match the source that was just
-# deployed. public/js/ is build output and is never shipped.
+# The browser code is TypeScript in src/. It is compiled here, immediately before
+# the upload, so the modules the browser loads always match the source that was
+# just deployed. Building on the server instead was the original design, but it
+# assumes the server's tsc writes files as the deploying user; on hosts where the
+# compiler runs inside a container wrapper (root-owned output, a project mounted
+# at a different path) the build either writes nothing or leaves a directory the
+# deploy user cannot replace.
 #
 # Usage:
 #   ./deploy.sh
@@ -37,7 +41,6 @@ EXCLUDES=(
     --exclude='.gitignore'
     --exclude='.gitattributes'
     --exclude='node_modules/'
-    --exclude='public/js/'
     --exclude='.build/'
     --exclude='deploy.sh'
     --exclude='*.log'
@@ -80,34 +83,24 @@ if [ -f "${SCRIPT_DIR}/composer.json" ]; then
     echo "OK Remote composer found"
 fi
 
-# The browser modules are compiled on the server, so Node.js and a TypeScript
-# compiler must resolve there too. build.sh --no-install uses a global tsc or
-# npx; no npm install is required on the server.
+# The browser modules are compiled locally before the upload. The deploy host
+# needs PHP only: no Node.js and no compiler. A failed build aborts the deploy
+# before anything is copied, so a broken tree never reaches the server.
 if [ -f "${SCRIPT_DIR}/build.sh" ]; then
-    if ! ssh "${PROD_HOST}" "${REMOTE_PATH} && command -v node >/dev/null"; then
+    echo "Building src/..."
+    if ! bash "${SCRIPT_DIR}/build.sh"; then
         echo "" >&2
-        echo "x Preflight FAILED: build.sh present but node not found on ${PROD_HOST}." >&2
-        echo "  node:      $(ssh "${PROD_HOST}" "${REMOTE_PATH} && command -v node" 2>/dev/null || echo 'NOT FOUND')" >&2
-        echo "  The TypeScript is compiled on the server during deploy, so install" >&2
-        echo "  Node.js there, or set TSC=/path/to/tsc in the remote environment." >&2
+        echo "x Build FAILED locally. Nothing was uploaded." >&2
+        echo "  Re-run it by itself to see the error:" >&2
+        echo "    cd ${SCRIPT_DIR} && ./build.sh" >&2
         exit 1
     fi
-
-    if ! ssh "${PROD_HOST}" "${REMOTE_PATH} && { command -v tsc >/dev/null || command -v npx >/dev/null; }"; then
-        echo "" >&2
-        echo "x Preflight FAILED: no TypeScript compiler found on ${PROD_HOST}." >&2
-        echo "  tsc:       $(ssh "${PROD_HOST}" "${REMOTE_PATH} && command -v tsc" 2>/dev/null || echo 'NOT FOUND')" >&2
-        echo "  npx:       $(ssh "${PROD_HOST}" "${REMOTE_PATH} && command -v npx" 2>/dev/null || echo 'NOT FOUND')" >&2
-        echo "  Install one with: ssh ${PROD_HOST} 'sudo npm install -g typescript'" >&2
-        echo "  ...or set TSC=/path/to/tsc in the remote environment." >&2
-        exit 1
-    fi
-    echo "OK Remote node and TypeScript compiler found"
+    echo "OK Built public/js/ locally"
 fi
 
-# public/js/ is build output, so it is excluded here and rebuilt on the server.
-# Shipping a stale copy is how a deploy ends up serving code that does not match
-# the source that is in the repository.
+# public/js/ is now fresh build output, so it ships with the tree. Shipping a
+# stale copy is how a deploy ends up serving code that does not match the
+# source that is in the repository.
 rsync -avz --delete "${EXCLUDES[@]}" \
     "${SCRIPT_DIR}/" \
     "${PROD_HOST}:${PROD_PATH}"
@@ -120,18 +113,12 @@ echo "Running post-deploy commands..."
 
 REMOTE_STEPS="cd ${PROD_PATH}"
 
-# 1. Compile src/ into public/js/ on the server. This runs after the upload, so
-#    the modules the browser gets are built from the source just deployed.
-if [ -f "${SCRIPT_DIR}/build.sh" ]; then
-    REMOTE_STEPS="${REMOTE_STEPS} && bash ./build.sh --no-install"
-fi
-
-# 2. Composer dependencies — only when the app actually has a composer.json.
+# 1. Composer dependencies — only when the app actually has a composer.json.
 if [ -f "${SCRIPT_DIR}/composer.json" ]; then
     REMOTE_STEPS="${REMOTE_STEPS} && composer install --no-dev --optimize-autoloader"
 fi
 
-# 3. Reset the opcode cache so the new files are picked up. Harmless if opcache
+# 2. Reset the opcode cache so the new files are picked up. Harmless if opcache
 #    is not enabled; guarded with function_exists so it cannot error.
 REMOTE_STEPS="${REMOTE_STEPS} && php -r 'if (function_exists(\"opcache_reset\")) { opcache_reset(); }'"
 
@@ -140,11 +127,6 @@ if ! ssh "${PROD_HOST}" "${REMOTE_PATH} && ${REMOTE_STEPS}"; then
     echo "x Post-deploy commands FAILED on ${PROD_HOST}." >&2
     echo "  Re-run the failing step by hand to see the full error:" >&2
     echo "    ssh ${PROD_HOST} '${REMOTE_PATH} && cd ${PROD_PATH} && <command>'" >&2
-    if [ -f "${SCRIPT_DIR}/build.sh" ]; then
-        echo "" >&2
-        echo "  If the failure came from the TypeScript build, run it by itself:" >&2
-        echo "    ssh ${PROD_HOST} '${REMOTE_PATH} && cd ${PROD_PATH} && bash ./build.sh --no-install'" >&2
-    fi
     exit 1
 fi
 
@@ -165,8 +147,8 @@ if [ "${SMOKE_STATUS}" != "200" ]; then
 fi
 echo "OK Smoke test passed (HTTP 200: ${SMOKE_URL})"
 
-# The served modules must be the ones the server just built, not an older copy
-# left behind by a deploy that silently did not update them.
+# The served modules must be the ones this deploy just uploaded, not an older
+# copy left behind by a deploy that silently did not update them.
 echo ""
 echo "Verifying the served modules..."
 HOME_HTML="$(curl -sS "${SITE_URL}/?deploy=${CACHE_BUST}" 2>/dev/null || true)"

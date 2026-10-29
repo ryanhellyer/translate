@@ -149,7 +149,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="panel target">
+			<div class="panel target has-output">
 				<p class="translation">Ein Mann. Eine Kamera. Viele aufregende Abenteuer.</p>
 				<div class="panel-footer">
 					<div class="panel-actions">

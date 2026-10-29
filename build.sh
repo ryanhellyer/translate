@@ -4,8 +4,8 @@
 #
 #   src/**/*.ts  ->  public/js/**/*.js  (native ES modules)
 #
-# The same script is used locally and on the deploy server. It finds a
-# TypeScript compiler in this order:
+# The same script runs locally and on any machine that needs to build the
+# modules. It finds a TypeScript compiler in this order:
 #
 #   1. $TSC, if set
 #   2. ./node_modules/.bin/tsc (or node_modules/typescript/bin/tsc)
@@ -13,7 +13,7 @@
 #   4. npx, which fetches TypeScript on first use
 #
 # Locally, missing dependencies are installed automatically. Pass --no-install
-# to use only a compiler that is already available; deploy.sh does this.
+# to use only a compiler that is already available.
 #
 # Usage:
 #   ./build.sh              Install dependencies if needed, then compile
@@ -31,7 +31,13 @@ cd "${ROOT}"
 
 OUT_DIR="public/js"
 ENTRY="${OUT_DIR}/main.js"
-TMP_DIR="${ROOT}/.build/js"
+# tsc gets this as a *relative* --outDir. On some hosts the compiler is reached
+# through a wrapper (a container, a remote builder) that mounts the project at
+# a different absolute path, so an absolute $HOME/... path can point at nothing
+# inside that sandbox: tsc then emits nowhere and still exits 0. Relative to the
+# project root, the path is the same wherever the compiler thinks it is.
+TMP_DIR_NAME=".build/js"
+TMP_DIR="${ROOT}/${TMP_DIR_NAME}"
 TSC_PACKAGE="typescript@7"
 
 CHECK_ONLY=0
@@ -141,7 +147,7 @@ trap cleanup EXIT
 # site with a half-written or missing public/js/ directory.
 rm -rf "${TMP_DIR}"
 echo "Compiling src/ to ${OUT_DIR}/..."
-"${TSC_CMD[@]}" --project tsconfig.json --outDir "${TMP_DIR}"
+"${TSC_CMD[@]}" --project tsconfig.json --outDir "${TMP_DIR_NAME}"
 
 if [ ! -f "${TMP_DIR}/main.js" ]; then
     echo "x Compilation finished but ${TMP_DIR}/main.js is missing." >&2
