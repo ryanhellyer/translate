@@ -9,6 +9,11 @@
 npm-debug.log*
 yarn-error.log*
 
+# --- Build output (compiled from src/) ---
+node_modules/
+public/js/
+.build/
+
 # --- Editor / OS cruft ---
 .DS_Store
 Thumbs.db

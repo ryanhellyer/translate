@@ -182,7 +182,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="/scripts.js"></script>
+<script type="module" src="/js/main.js"></script>
 
 </body>
 </html>

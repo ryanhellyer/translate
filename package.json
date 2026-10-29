@@ -1,0 +1,15 @@
+{
+	"name": "translate-hellyer-kiwi",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Browser scripts for translate.hellyer.kiwi, written in TypeScript.",
+	"license": "UNLICENSED",
+	"scripts": {
+		"build": "./build.sh",
+		"typecheck": "./build.sh --check",
+		"clean": "rm -rf public/js .build"
+	},
+	"devDependencies": {
+		"typescript": "^7.0.2"
+	}
+}

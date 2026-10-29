@@ -409,7 +409,7 @@ html[data-theme="dark"] {
 			}
 
 			/* The pulldown each .lang-select opens; its contents are built
-			   by scripts.js with .lang-search/.lang-options/.lang-option. */
+			   by the translator code in src/ with .lang-search/.lang-options/.lang-option. */
 			& > .lang-menu {
 				position: absolute;
 				inset-block-start: calc(100% + 8px);
