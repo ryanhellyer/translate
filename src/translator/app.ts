@@ -5,40 +5,77 @@
  * the controller. The graph is small and has one composition root, so a
  * dependency-injection container would add a runtime and decorator metadata
  * for no benefit; constructor injection is enough.
+ *
+ * The card has three modes. Translate is the existing translator; Analyse and
+ * Rewrite share the learner's own text and an AI call to the proofreading
+ * endpoints (see review-service.ts). The mode switch decides which controller
+ * is awake, and the shared language pair lives in one state object.
  */
 
 import { Clipboard } from '../ui/clipboard.js';
 import { Toast } from '../ui/toast.js';
 import { LanguageCatalog } from './language-catalog.js';
+import { ModeController } from './mode-controller.js';
+import { ReviewController } from './review-controller.js';
+import { ReviewService } from './review-service.js';
+import { ReviewView } from './review-view.js';
 import { SpeechService } from './speech-service.js';
 import { StorageService } from './storage-service.js';
 import { DEFAULT_API_BASE, TranslationService } from './translation-service.js';
 import { TranslatorController } from './translator-controller.js';
 import { TranslatorView } from './translator-view.js';
+import { createDefaultState } from './translator-state.js';
 
 export class TranslatorApp {
 	static startIfPresent(): TranslatorController | null {
 		if (!TranslatorView.exists()) return null;
 
-		const view = new TranslatorView();
-		const catalog = new LanguageCatalog();
+		const base = TranslatorApp.apiBase();
+		const state = createDefaultState();
 		const storage = new StorageService();
+		const saved = storage.restore(state);
+
+		const catalog = new LanguageCatalog();
 		const clipboard = new Clipboard();
 		const speech = new SpeechService();
 		const toast = new Toast();
-		const translations = new TranslationService(TranslatorApp.apiBase());
 
-		const controller = new TranslatorController(
+		/* The stored mode is applied before the controllers start, so a page
+		   that opens in Analyse does not translate first. */
+		const mode = new ModeController();
+		const initial = mode.init();
+
+		const view = new TranslatorView();
+		const translator = new TranslatorController(
 			view,
 			catalog,
 			storage,
 			clipboard,
 			speech,
 			toast,
-			translations
+			new TranslationService(base),
+			state
 		);
-		controller.init();
-		return controller;
+		translator.init(saved, initial === 'translate');
+
+		const review = new ReviewController(
+			new ReviewView(),
+			new ReviewService(base),
+			catalog,
+			state,
+			clipboard,
+			speech,
+			toast
+		);
+		review.init();
+		review.setMode(initial);
+
+		mode.onChange((next) => {
+			translator.setActive(next === 'translate');
+			review.setMode(next);
+		});
+
+		return translator;
 	}
 
 	/**

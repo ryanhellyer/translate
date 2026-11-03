@@ -33,7 +33,9 @@ export class TranslatorView {
 	readonly listenButton: HTMLButtonElement = requireElementById<HTMLButtonElement>('listen-btn');
 	readonly copyButton: HTMLButtonElement = requireElementById<HTMLButtonElement>('copy-btn');
 	readonly clearButton: HTMLButtonElement = requireElementById<HTMLButtonElement>('clear-btn');
-	readonly styleButtons: HTMLElement[] = [...document.querySelectorAll<HTMLElement>('.style-option')];
+	readonly styleButtons: HTMLElement[] = [
+		...document.querySelectorAll<HTMLElement>('.translator-card .style-bar[data-part="translate"] .style-option[data-style]')
+	];
 	readonly languageTabs: HTMLElement[] = [...document.querySelectorAll<HTMLElement>('.lang-tab')];
 
 	/** Which side the visitor is writing in; the other side is the result. */

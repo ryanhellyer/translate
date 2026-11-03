@@ -19,6 +19,61 @@ POST {api}/v1/translations
 codes and maps them via `apiName()` in `src/translator/languages.ts`), and
 `tone` is the writing style, omitted when none is chosen.
 
+The card has three modes, chosen with the switch at its top and remembered
+between visits:
+
+- **Translate** — the flow above.
+- **Analyse** — the visitor's own text, returned with clickable highlights.
+  Each highlight explains what went wrong and gives a rule to remember.
+- **Rewrite** — the same text, rewritten to sound more natural, with the
+  changed phrasing marked and a note on what changed.
+
+Analyse and Rewrite are new, so their endpoints are not live yet. The app
+expects:
+
+```
+POST {api}/v1/analyses
+{ "language": "German", "explanation_language": "English",
+  "text": "...", "checks": ["grammar", "spelling", "punctuation", "style"] }
+-> {
+     "issues": [{
+       "start": 34, "end": 46,              // UTF-16 offsets into "text"
+       "severity": "correction",            // or "suggestion"
+       "category": "Word order",
+       "original": "letzte Woche",
+       "replacement": "letzte Woche",
+       "sentence": "Ich bin nach Berlin gereist letzte Woche.",
+       "corrected": "Ich bin letzte Woche nach Berlin gereist.",
+       "explanation": "English ends a sentence with a time phrase; ...",
+       "tip": "Time before place. Ask wann? before wohin?",
+       "examples": [{ "correct": "...", "wrong": "..." }]
+     }],
+     "corrected_text": "..."              // whole text, for copy/listen
+   }
+
+POST {api}/v1/rewrites
+{ "language": "German", "text": "...", "style": "formal" }   // style optional
+-> {
+     "rewrite": "...",
+     "changes": [{
+       "start": 120, "end": 128,          // UTF-16 offsets into "rewrite"
+       "original": "sehr lecker",
+       "replacement": "hervorragend",
+       "note": "A stronger word choice."
+     }]
+   }
+```
+
+`language` is the language being checked or rewritten (the translator's target
+side) and `explanation_language` is the visitor's own language (the source
+side), so the default English → German pair means German text with English
+notes. Offsets are UTF-16 code units into the exact text sent, which is what
+`String.prototype.slice` uses in the browser. `checks` and `style` (and every
+field of an issue apart from `start`, `end` and `explanation`) are optional;
+`src/translator/review-model.ts` validates the answers and drops anything it
+cannot place. Both endpoints need the same CORS treatment as
+`/v1/translations`.
+
 The API base URL comes from `data-api-base` on the translator card. The front
 controller (`public/index.php`) fills it from the `TRANSLATE_API_BASE`
 environment variable, defaulting to the production API. So production needs no
@@ -116,6 +171,7 @@ console.
 ./build.sh
 node .verify.cjs      # UI suite (stubs the API)
 node .e2e-api.cjs     # AJAX translation path, against a stubbed API
+node .e2e-review.cjs  # Analyse and Rewrite, against stubbed proofreading APIs
 node .e2e.cjs         # AJAX translation path, against the live dev API
 ```
 

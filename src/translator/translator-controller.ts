@@ -26,12 +26,11 @@ import { ICON_DONE } from '../ui/icons.js';
 import { LanguageCatalog } from './language-catalog.js';
 import { LanguageMenu } from './language-menu.js';
 import { SpeechService } from './speech-service.js';
-import { StorageService } from './storage-service.js';
+import { StorageService, type PersistedText } from './storage-service.js';
 import { TranslationError, TranslationService, type TranslationRequest } from './translation-service.js';
 import { TranslatorView } from './translator-view.js';
 import {
 	applySelection,
-	createDefaultState,
 	otherSide,
 	swapPair,
 	type TranslatorState
@@ -50,12 +49,14 @@ export class TranslatorController {
 	private readonly toast: Toast;
 	private readonly translations: TranslationService;
 
-	private readonly state: TranslatorState = createDefaultState();
+	private readonly state: TranslatorState;
 	private readonly menus: Record<Side, LanguageMenu>;
 	private readonly view: TranslatorView;
 	private readonly copyIconHtml: string;
 	private readonly catalog: LanguageCatalog;
 
+	/** False while another mode is showing; the card then does no work. */
+	private active = true;
 	private speaking = false;
 	/** The side the visitor is writing in; the other side is the result. */
 	private activeSide: Side = 'source';
@@ -72,7 +73,8 @@ export class TranslatorController {
 		clipboard: Clipboard,
 		speech: SpeechService,
 		toast: Toast,
-		translations: TranslationService
+		translations: TranslationService,
+		state: TranslatorState
 	) {
 		this.storage = storage;
 		this.clipboard = clipboard;
@@ -81,6 +83,7 @@ export class TranslatorController {
 		this.translations = translations;
 		this.view = view;
 		this.catalog = catalog;
+		this.state = state;
 		this.copyIconHtml = view.copyButton.innerHTML;
 		this.menus = {
 			source: new LanguageMenu('source', catalog, this.menuCallbacks('source')),
@@ -90,7 +93,14 @@ export class TranslatorController {
 
 	/* ---------- Start-up ---------- */
 
-	init(): void {
+	/**
+	 * `saved` is the text restored by the caller, and `active` says whether
+	 * Translate is the mode the page opens in. When another mode starts, the
+	 * initial translation is skipped so the API is not called for a panel
+	 * nobody is looking at.
+	 */
+	init(saved: PersistedText, active: boolean): void {
+		this.active = active;
 		this.wireEvents();
 
 		if (this.speech.supported) {
@@ -99,7 +109,6 @@ export class TranslatorController {
 			this.view.markUnsupportedSpeech();
 		}
 
-		const saved = this.storage.restore(this.state);
 		if (saved.input !== null) this.view.setText('source', saved.input);
 		/* Keep a restored translation on screen until the fresh one arrives. */
 		if (saved.output !== null) this.view.setText('target', saved.output);
@@ -111,11 +120,27 @@ export class TranslatorController {
 		}
 
 		this.render();
-		this.view.focusInvitation(this.activeSide);
+		if (this.active) this.view.focusInvitation(this.activeSide);
 		void document.fonts.ready.then(() => this.view.autoSizeAll());
 
 		/* Translate whatever is in the box now; any restored text above
 		   stays on screen until the fresh translation arrives. */
+		if (this.active) this.translate();
+	}
+
+	/**
+	 * Suspends or resumes translation when the visitor switches mode. An
+	 * in-flight request is cancelled on suspend; resuming asks for the
+	 * current text unless the answer is already on screen.
+	 */
+	setActive(active: boolean): void {
+		if (this.active === active) return;
+		this.active = active;
+		if (!active) {
+			this.cancelTranslation();
+			this.stopSpeaking();
+			return;
+		}
 		this.translate();
 	}
 
@@ -372,6 +397,7 @@ export class TranslatorController {
 	 * request, or a request already answered for the same text are all no-ops.
 	 */
 	private translate(): void {
+		if (!this.active) return;
 		const from = this.activeSide;
 		const to = otherSide(from);
 		const text = this.view.text(from).trim();

@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<!-- v3: the translator now calls the AI API over AJAX as you type.
-     data-api-base on the translator card sets the API origin; the front
-     controller fills it from $api_base (production by default, overridable
-     with TRANSLATE_API_BASE on a dev host). -->
+<!-- v4: three modes on one card. Translate is the AJAX translator; Analyse
+     and Rewrite send the visitor's own text to the proofreading endpoints
+     (assumed for now; see README.md). data-api-base sets the API origin for
+     all three, from $api_base in the front controller. -->
 <html lang="en-NZ">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="canonical" href="https://translate.hellyer.kiwi">
-<meta name="description" content="Translate. That's it. That's the page.">
+<meta name="description" content="Translate, check your writing, or rewrite it more naturally.">
 <meta name="color-scheme" content="light dark">
 <meta property="og:locale" content="en_NZ">
 <meta property="og:type" content="website">
@@ -98,8 +98,55 @@
 </header>
 
 <main>
-	<div class="translator-card" data-api-base="<?= htmlspecialchars($api_base ?? 'https://ai.hellyer.kiwi', ENT_QUOTES) ?>">
-		<div class="lang-bar">
+	<div class="translator-card" data-mode="translate" data-api-base="<?= htmlspecialchars($api_base ?? 'https://ai.hellyer.kiwi', ENT_QUOTES) ?>">
+
+		<script>
+			/* Apply the stored mode before the first paint; the controller
+			   does the rest. Avoids a flash of the translator on a tab that
+			   was left in Analyse or Rewrite. */
+			(function () {
+				try {
+					var mode = localStorage.getItem('translate-mode');
+					if (mode === 'analyse' || mode === 'rewrite') {
+						document.currentScript.parentElement.dataset.mode = mode;
+					}
+				} catch (e) {}
+			})();
+		</script>
+
+		<!-- Translate · Analyse · Rewrite. The stylesheet shows the matching
+		     part of the card; the stored mode is applied by mode-controller. -->
+		<div class="mode-bar">
+			<div class="mode-switch" role="group" aria-label="Mode">
+				<button type="button" class="mode-option is-active" data-mode="translate" aria-pressed="true">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+						<path d="m5 8 6 6"></path>
+						<path d="m4 14 6-6 2-3"></path>
+						<path d="M2 5h12"></path>
+						<path d="M7 2h1"></path>
+						<path d="m22 22-5-10-5 10"></path>
+						<path d="M14 18h6"></path>
+					</svg>
+					Translate
+				</button>
+				<button type="button" class="mode-option" data-mode="analyse" aria-pressed="false">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+						<circle cx="11" cy="11" r="7"></circle>
+						<path d="m21 21-4.3-4.3"></path>
+					</svg>
+					Analyse
+				</button>
+				<button type="button" class="mode-option" data-mode="rewrite" aria-pressed="false">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+						<path d="M12 20h9"></path>
+						<path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+					</svg>
+					Rewrite
+				</button>
+			</div>
+		</div>
+
+		<div class="lang-bar" data-part="translate">
 			<div class="lang-group" role="group" aria-label="Source language">
 				<span class="lang-tabs" id="source-tabs" aria-label="Current language pair">
 					<button type="button" class="lang-tab from" aria-label="Swap to translate into this language">English</button>
@@ -134,7 +181,7 @@
 			<div class="lang-menu" id="target-menu" aria-label="Choose target language" hidden></div>
 		</div>
 
-		<div class="panels">
+		<div class="panels" data-part="translate">
 			<div class="panel source">
 				<textarea aria-label="Source text" placeholder="Enter text" spellcheck="false" maxlength="5000">One man. One camera. Many exciting adventures.</textarea>
 				<div class="panel-footer">
@@ -175,13 +222,162 @@
 			</div>
 		</div>
 
-		<div class="style-bar">
+		<div class="style-bar" data-part="translate">
 			<span class="style-label" id="style-label">Style</span>
 			<div class="style-options" role="group" aria-labelledby="style-label">
 				<button type="button" class="style-option" data-style="formal" aria-pressed="false" title="Polished and proper">Formal</button>
 				<button type="button" class="style-option" data-style="informal" aria-pressed="false" title="Relaxed, everyday language">Informal</button>
 				<button type="button" class="style-option" data-style="simple" aria-pressed="false" title="Plain, easy-to-understand language for non-native speakers">Simple</button>
 				<button type="button" class="style-option" data-style="kitten" aria-pressed="false" title="Sounds like a kitten wrote it">Kitten</button>
+			</div>
+		</div>
+
+		<!-- Analyse and Rewrite work on the learner's own text. The stylesheet
+		     shows this only while one of those modes is selected. -->
+		<div class="review" data-part="review">
+			<div class="review-bar">
+				<span class="review-lang" id="review-language">German</span>
+				<span class="review-explain" id="review-explain">Explanations in English</span>
+			</div>
+
+			<div class="review-panels">
+				<div class="review-panel review-source">
+					<textarea class="review-input" id="review-input" maxlength="5000" spellcheck="false" lang="de" placeholder="Write your own text here" aria-label="Your text"></textarea>
+					<div class="review-foot">
+						<span class="char-count" id="review-count">0 / 5,000</span>
+						<div class="panel-actions">
+							<button type="button" class="icon-btn" id="review-clear" aria-label="Clear text" hidden>
+								<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+									<path d="M18 6 6 18"></path>
+									<path d="m6 6 12 12"></path>
+								</svg>
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<div class="review-panel review-output">
+					<section class="review-view" data-view="analyse" aria-label="Analysis">
+						<div class="review-head">
+							<p class="review-label">Your text, checked <span class="lang-badge" id="analyse-badge">DE</span></p>
+							<span class="review-status" id="analyse-status" role="status" aria-live="polite" hidden></span>
+						</div>
+
+						<div class="review-body">
+							<div class="review-error" id="analyse-error" role="alert" hidden></div>
+							<p class="review-annotated" id="analyse-text"></p>
+
+							<div class="insight-bar" id="insight-bar" hidden>
+								<span class="insight-count" id="insight-count"></span>
+								<span class="insight-actions">
+									<button type="button" class="nav-btn" id="prev-issue" aria-label="Previous issue">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+											<path d="m15 18-6-6 6-6"></path>
+										</svg>
+									</button>
+									<button type="button" class="nav-btn" id="next-issue" aria-label="Next issue">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+											<path d="m9 18 6-6-6-6"></path>
+										</svg>
+									</button>
+									<button type="button" class="nav-btn" id="close-insight" aria-label="Close explanation">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+											<path d="M18 6 6 18"></path>
+											<path d="m6 6 12 12"></path>
+										</svg>
+									</button>
+								</span>
+							</div>
+
+							<div class="insight-stack" id="insight-stack" aria-live="polite"></div>
+						</div>
+
+						<div class="review-foot">
+							<span class="legend">
+								<span class="legend-dot err"></span>Correction
+								<span class="legend-dot sug"></span>Suggestion
+							</span>
+							<div class="panel-actions">
+								<button type="button" class="icon-btn" id="analyse-copy" aria-label="Copy corrected text" disabled>
+									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+										<rect x="9" y="9" width="12" height="12" rx="2"></rect>
+										<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+									</svg>
+								</button>
+								<button type="button" class="icon-btn" id="analyse-listen" aria-label="Read the corrected text aloud" aria-pressed="false" disabled>
+									<svg class="icon-listen" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+										<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+										<path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+										<path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+									</svg>
+									<svg class="icon-stop" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+										<rect x="6" y="6" width="12" height="12" rx="1"></rect>
+									</svg>
+								</button>
+							</div>
+						</div>
+					</section>
+
+					<section class="review-view" data-view="rewrite" aria-label="Rewrite">
+						<div class="review-head">
+							<p class="review-label">Your text, rewritten <span class="lang-badge" id="rewrite-badge">DE</span></p>
+							<span class="review-status" id="rewrite-status" role="status" aria-live="polite" hidden></span>
+						</div>
+
+						<div class="review-body">
+							<div class="review-error" id="rewrite-error" role="alert" hidden></div>
+							<p class="review-rewrite" id="rewrite-text"></p>
+							<div id="rewrite-placeholder"></div>
+
+							<div class="change-card" id="rewrite-changes" hidden>
+								<p class="review-label">What changed</p>
+								<ul class="change-list" id="rewrite-change-list"></ul>
+							</div>
+						</div>
+
+						<div class="review-foot">
+							<span class="legend"><span class="legend-dot chg"></span>Changed phrasing</span>
+							<div class="panel-actions">
+								<button type="button" class="icon-btn" id="rewrite-copy" aria-label="Copy the rewrite" disabled>
+									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+										<rect x="9" y="9" width="12" height="12" rx="2"></rect>
+										<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+									</svg>
+								</button>
+								<button type="button" class="icon-btn" id="rewrite-listen" aria-label="Read the rewrite aloud" aria-pressed="false" disabled>
+									<svg class="icon-listen" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+										<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+										<path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+										<path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+									</svg>
+									<svg class="icon-stop" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+										<rect x="6" y="6" width="12" height="12" rx="1"></rect>
+									</svg>
+								</button>
+							</div>
+						</div>
+					</section>
+				</div>
+			</div>
+		</div>
+
+		<div class="style-bar" data-bar="analyse">
+			<span class="style-label" id="checks-label">Check for</span>
+			<div class="style-options" role="group" aria-labelledby="checks-label">
+				<button type="button" class="style-option active" data-check="grammar" aria-pressed="true" title="Grammar and word order">Grammar</button>
+				<button type="button" class="style-option active" data-check="spelling" aria-pressed="true" title="Spelling mistakes">Spelling</button>
+				<button type="button" class="style-option active" data-check="punctuation" aria-pressed="true" title="Commas, full stops and other punctuation">Punctuation</button>
+				<button type="button" class="style-option active" data-check="style" aria-pressed="true" title="Phrasing that could sound more natural">Style</button>
+			</div>
+		</div>
+
+		<div class="style-bar" data-bar="rewrite">
+			<span class="style-label" id="rewrite-style-label">Rewrite as</span>
+			<div class="style-options" role="group" aria-labelledby="rewrite-style-label">
+				<button type="button" class="style-option active" data-rewrite-style="natural" aria-pressed="true" title="Natural, idiomatic phrasing">Natural</button>
+				<button type="button" class="style-option" data-rewrite-style="formal" aria-pressed="false" title="Polished and proper">Formal</button>
+				<button type="button" class="style-option" data-rewrite-style="simple" aria-pressed="false" title="Plain, easy-to-understand language">Simple</button>
+				<button type="button" class="style-option" data-rewrite-style="playful" aria-pressed="false" title="Lighter, more playful wording">Playful</button>
 			</div>
 		</div>
 	</div>

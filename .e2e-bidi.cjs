@@ -35,7 +35,7 @@ function assert(cond, message) {
   const right = page.locator('.panel.target .translation');
   const error = page.locator('.panel.target .translation-error');
 
-  assert(await page.locator('.translator-card textarea').count() === 2, 'both panels are textareas');
+  assert(await page.locator('.panels textarea').count() === 2, 'both panels are textareas');
 
   const metrics = await page.evaluate(() => {
     const grab = (el) => {
