@@ -187,10 +187,6 @@
 	</div>
 </main>
 
-<footer id="footer">
-	<p>translate.hellyer.kiwi &mdash; translations by <a href="https://ai.hellyer.kiwi">ai.hellyer.kiwi</a> &mdash; <a href="https://ryan.hellyer.kiwi/">ryan.hellyer.kiwi</a></p>
-</footer>
-
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script type="module" src="/js/main.js"></script>
