@@ -150,7 +150,8 @@
 				</div>
 			</div>
 			<div class="panel target has-output">
-				<p class="translation">Ein Mann. Eine Kamera. Viele aufregende Abenteuer.</p>
+				<textarea class="translation" aria-label="Translated text" placeholder="Translation appears here" spellcheck="false" maxlength="5000">Ein Mann. Eine Kamera. Viele aufregende Abenteuer.</textarea>
+				<p class="translation-error" role="alert" hidden></p>
 				<div class="panel-footer">
 					<div class="panel-actions">
 						<button type="button" class="icon-btn" id="copy-btn" aria-label="Copy translation">

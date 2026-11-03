@@ -5,9 +5,16 @@
  * Translating is an AJAX call to the AI API (see translation-service.ts),
  * made as the visitor types and when the language pair or style changes. One
  * request is in flight at a time: a newer keystroke aborts the older call, so
- * the output always reflects the latest input. Runs only on the home page;
- * other templates omit the translator card.
+ * the result always reflects the latest text.
  *
+ * Either panel can be the one being written in. Whichever side the visitor
+ * last edited is the source; the other side is replaced with its translation.
+ * Only a human edit moves that focus — a translation arriving in a box is not
+ * an edit, so it never bounces back. "Detect language" has no reverse gear,
+ * so while it is the source the result box is locked and the direction stays
+ * left-to-right.
+ *
+ * Runs only on the home page; other templates omit the translator card.
  * Dependencies arrive through the constructor (see app.ts), so a different
  * storage, clipboard, speech or translation implementation can be substituted
  * in one place.
@@ -25,6 +32,7 @@ import { TranslatorView } from './translator-view.js';
 import {
 	applySelection,
 	createDefaultState,
+	otherSide,
 	swapPair,
 	type TranslatorState
 } from './translator-state.js';
@@ -32,6 +40,8 @@ import { AUTO_CODE, type Side } from './languages.js';
 
 /** Wait this long after the last keystroke before asking the API. */
 const TYPING_PAUSE_MS = 500;
+
+const SIDES: readonly Side[] = ['source', 'target'];
 
 export class TranslatorController {
 	private readonly storage: StorageService;
@@ -47,6 +57,8 @@ export class TranslatorController {
 	private readonly catalog: LanguageCatalog;
 
 	private speaking = false;
+	/** The side the visitor is writing in; the other side is the result. */
+	private activeSide: Side = 'source';
 	/** The debounce timer and the request it is about to make, if any. */
 	private typingTimer: ReturnType<typeof setTimeout> | null = null;
 	private inFlight: AbortController | null = null;
@@ -88,16 +100,22 @@ export class TranslatorController {
 		}
 
 		const saved = this.storage.restore(this.state);
-		if (saved.input !== null) this.view.input = saved.input;
+		if (saved.input !== null) this.view.setText('source', saved.input);
 		/* Keep a restored translation on screen until the fresh one arrives. */
-		if (saved.output !== null) this.view.outputText = saved.output;
+		if (saved.output !== null) this.view.setText('target', saved.output);
+
+		/* Text only on the right means the visitor was writing there, so
+		   resume in that direction instead of translating an empty box. */
+		if (this.view.text('source').trim() === '' && this.view.text('target').trim() !== '') {
+			this.activeSide = 'target';
+		}
 
 		this.render();
-		this.view.focusInvitation();
-		void document.fonts.ready.then(() => this.view.autoSizeInput());
+		this.view.focusInvitation(this.activeSide);
+		void document.fonts.ready.then(() => this.view.autoSizeAll());
 
-		/* Translate whatever is in the box now; any restored output above
-		   stays on screen until the fresh one arrives. */
+		/* Translate whatever is in the box now; any restored text above
+		   stays on screen until the fresh translation arrives. */
 		this.translate();
 	}
 
@@ -124,21 +142,17 @@ export class TranslatorController {
 		view.clearButton.addEventListener('click', () => this.clear());
 		view.listenButton.addEventListener('click', () => this.toggleSpeech());
 
-		view.textarea.addEventListener('input', () => {
-			view.autoSizeInput();
-			view.updateCounter();
-			view.updateActionButtons();
-			this.save();
-			this.scheduleTranslation();
-		});
+		for (const side of SIDES) {
+			view.fields[side].addEventListener('input', (event) => this.onEdit(side, event));
+		}
 
 		window.addEventListener('resize', () => {
-			view.autoSizeInput();
+			view.autoSizeAll();
 			this.renderLabels();
 			this.syncMenuState();
 		});
 
-		for (const side of ['source', 'target'] as const) {
+		for (const side of SIDES) {
 			const button = document.getElementById(`${side}-select`);
 			button?.addEventListener('click', () => this.toggleMenu(side));
 		}
@@ -160,6 +174,33 @@ export class TranslatorController {
 		});
 	}
 
+	/**
+	 * A human keystroke, paste, drop or undo. This is the only thing that can
+	 * change which side is the source. A translation written into a box never
+	 * reaches here: assigning `.value` does not fire `input`, and a
+	 * synthesised event is never trusted.
+	 */
+	private onEdit(side: Side, event: Event): void {
+		if (!event.isTrusted) return;
+		/* An IME fires `input` for every candidate it previews; wait for the
+		   committed text. */
+		if (event instanceof InputEvent && event.isComposing) return;
+		/* Auto-detect cannot run in reverse; the box is locked anyway, so this
+		   is the belt to that pair of braces. */
+		if (side === 'target' && this.state.source === AUTO_CODE) return;
+
+		this.activeSide = side;
+		this.view.setActiveSide(side);
+		this.view.clearError();
+		/* Stops an answer for the previous text landing in the box being
+		   typed in. */
+		this.cancelTranslation();
+		this.view.updateCounter();
+		this.view.updateActionButtons(this.derivedSide());
+		this.save();
+		this.scheduleTranslation();
+	}
+
 	private menuCallbacks(side: Side): { isActive(code: string): boolean; onSelect(code: string): void } {
 		return {
 			isActive: (code) => this.sideValue(side) === code,
@@ -171,13 +212,41 @@ export class TranslatorController {
 
 	private render(): void {
 		this.renderLabels();
-		for (const side of ['source', 'target'] as const) {
+		for (const side of SIDES) {
 			this.menus[side].refresh();
 		}
 		this.view.renderStyles(this.state);
-		this.view.autoSizeInput();
+		this.syncDirection();
+		this.view.autoSizeAll();
 		this.view.updateCounter();
-		this.view.updateActionButtons();
+		this.view.updateActionButtons(this.derivedSide());
+	}
+
+	/**
+	 * Points the card at the side the visitor is writing in, and locks the
+	 * result box while "Detect language" is the source.
+	 */
+	private syncDirection(): void {
+		const canEditTarget = this.state.source !== AUTO_CODE;
+
+		/* Turning auto-detect on can strand text in the result box. Move it
+		   home rather than let the next translation wipe it. */
+		if (!canEditTarget && this.activeSide === 'target') {
+			if (this.view.text('source').trim() === '') {
+				this.view.setText('source', this.view.text('target'));
+				this.view.setText('target', '');
+			}
+			this.activeSide = 'source';
+		}
+
+		this.view.setTargetEditable(canEditTarget,
+			'Choose a source language to edit the translation');
+		this.view.setActiveSide(this.activeSide);
+	}
+
+	/** The panel currently holding the translation, which is the other one. */
+	private derivedSide(): Side {
+		return otherSide(this.activeSide);
 	}
 
 	/* The two languages currently being translated appear on the left of
@@ -219,7 +288,7 @@ export class TranslatorController {
 
 	/** Keeps aria-expanded on the visible language names in step with the menus. */
 	private syncMenuState(): void {
-		for (const side of ['source', 'target'] as const) {
+		for (const side of SIDES) {
 			this.view.markMenuExpanded(side, this.menus[side].isOpen);
 		}
 	}
@@ -227,10 +296,12 @@ export class TranslatorController {
 	private swap(): void {
 		swapPair(this.state);
 
-		const oldSource = this.view.input;
-		this.view.input = this.view.outputText;
-		this.view.outputText = oldSource;
+		const sourceText = this.view.text('source');
+		this.view.setText('source', this.view.text('target'));
+		this.view.setText('target', sourceText);
 
+		this.activeSide = 'source';
+		this.translatedKey = null;
 		this.save();
 		this.render();
 		this.translate();
@@ -249,7 +320,7 @@ export class TranslatorController {
 	/* ---------- Copy ---------- */
 
 	private async copyTranslation(): Promise<void> {
-		const copied = await this.clipboard.write(this.view.outputText.trim());
+		const copied = await this.clipboard.write(this.view.text(this.derivedSide()).trim());
 		this.showToast(copied ? 'Translation copied' : 'Could not copy');
 		if (!copied) return;
 
@@ -260,14 +331,16 @@ export class TranslatorController {
 
 	private clear(): void {
 		this.cancelTranslation();
-		this.view.input = '';
+		this.view.setText('source', '');
+		this.view.setText('target', '');
 		this.view.clearError();
-		this.view.outputText = '';
 		this.translatedKey = null;
+		this.activeSide = 'source';
+		this.view.setActiveSide('source');
 		this.view.updateCounter();
-		this.view.updateActionButtons();
+		this.view.updateActionButtons('target');
 		this.save();
-		this.view.textarea.focus();
+		this.view.focusInvitation('source');
 	}
 
 	/* ---------- Translation ---------- */
@@ -281,7 +354,7 @@ export class TranslatorController {
 		}, TYPING_PAUSE_MS);
 	}
 
-	/** Drops any pending or in-flight request without touching the output. */
+	/** Drops any pending or in-flight request without touching the text. */
 	private cancelTranslation(): void {
 		if (this.typingTimer !== null) {
 			clearTimeout(this.typingTimer);
@@ -294,70 +367,75 @@ export class TranslatorController {
 	}
 
 	/**
-	 * Asks the API for the current text and shows the result. Safe to call at
-	 * any time: an empty box, an unchanged request, or a request already
-	 * answered for the same text are all no-ops.
+	 * Asks the API for the active side's text and shows the result in the
+	 * other side. Safe to call at any time: an empty box, an unchanged
+	 * request, or a request already answered for the same text are all no-ops.
 	 */
 	private translate(): void {
-		const text = this.view.input.trim();
+		const from = this.activeSide;
+		const to = otherSide(from);
+		const text = this.view.text(from).trim();
 
 		if (text === '') {
 			this.cancelTranslation();
 			this.view.clearError();
-			this.view.setBusy(false);
-			this.view.outputText = '';
+			this.view.setBusy(false, to);
+			this.view.setText(to, '');
 			this.translatedKey = null;
-			this.view.updateActionButtons();
+			this.view.updateActionButtons(to);
 			this.save();
 			return;
 		}
 
-		/* Same text, languages and style as the output on screen: nothing to do. */
-		const key = this.translationKey(text);
+		/* Same text, languages and style as the translation on screen:
+		   nothing to do. */
+		const key = this.translationKey(from, text);
 		if (key === this.translatedKey) return;
 
 		this.cancelTranslation();
 		const controller = new AbortController();
 		this.inFlight = controller;
 		this.view.clearError();
-		this.view.setBusy(true);
+		this.view.setBusy(true, to);
 
 		const request: TranslationRequest = {
-			source: this.state.source,
-			target: this.state.target,
+			source: this.state[from],
+			target: this.state[to],
 			text,
 			tone: this.state.style
 		};
 
 		void this.translations.translate(request, controller.signal)
 			.then((translation) => {
-				/* A newer request may have replaced this one while it was out. */
-				if (this.inFlight !== controller) return;
+				/* A newer request, or a switch of direction, replaced this
+				   one while it was out. */
+				if (this.inFlight !== controller || this.activeSide !== from) return;
 				this.inFlight = null;
-				this.view.setBusy(false);
+				this.view.setBusy(false, to);
 				this.view.clearError();
-				this.view.outputText = translation;
+				this.view.setText(to, translation);
 				this.translatedKey = key;
-				this.view.updateActionButtons();
+				this.view.updateActionButtons(to);
 				this.save();
 			})
 			.catch((error: unknown) => {
-				if (controller.signal.aborted || this.inFlight !== controller) return;
+				if (controller.signal.aborted || this.inFlight !== controller || this.activeSide !== from) return;
 				this.inFlight = null;
-				this.view.setBusy(false);
+				this.view.setBusy(false, to);
 				this.translatedKey = null;
 				this.view.showError(error instanceof TranslationError
 					? error.message
 					: 'Something went wrong while translating.');
-				this.view.updateActionButtons();
+				this.view.updateActionButtons(to);
 				this.save();
 			});
 	}
 
 	/** Identifies a request so identical ones are not repeated. */
-	private translationKey(text: string): string {
-		const source = this.state.source === AUTO_CODE ? 'en' : this.state.source;
-		return `${source}\u0000${this.state.target}\u0000${this.state.style ?? ''}\u0000${text}`;
+	private translationKey(from: Side, text: string): string {
+		const to = otherSide(from);
+		const language = (side: Side): string => this.state[side] === AUTO_CODE ? 'en' : this.state[side];
+		return `${language(from)}\u0000${language(to)}\u0000${this.state.style ?? ''}\u0000${text}`;
 	}
 
 	/* ---------- Speech ---------- */
@@ -372,18 +450,19 @@ export class TranslatorController {
 			return;
 		}
 
-		const target = this.catalog.language(this.state.target);
-		const text = this.view.outputText.trim();
+		const side = this.derivedSide();
+		const language = this.catalog.language(this.state[side]);
+		const text = this.view.text(side).trim();
 		if (!text) return;
 
-		if (!this.speech.hasVoice(target)) {
-			this.showToast(`No offline ${target.name} voice on this device`);
+		if (!this.speech.hasVoice(language)) {
+			this.showToast(`No offline ${language.name} voice on this device`);
 			return;
 		}
 
 		this.speaking = true;
 		this.view.setSpeaking(true);
-		this.speech.speak(text, target, () => this.stopSpeaking());
+		this.speech.speak(text, language, () => this.stopSpeaking());
 	}
 
 	private stopSpeaking(): void {
@@ -400,8 +479,8 @@ export class TranslatorController {
 
 	private save(): void {
 		this.storage.save(this.state, {
-			input: this.view.input,
-			output: this.view.outputText
+			input: this.view.text('source'),
+			output: this.view.text('target')
 		});
 	}
 }

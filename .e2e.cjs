@@ -74,7 +74,7 @@ const APP = process.env.APP_URL || 'http://127.0.0.1:8099/';
 
 	const result = await page.evaluate(() => {
 		const out = document.querySelector('.panel.target .translation');
-		return { text: out.textContent, isError: out.classList.contains('is-error') };
+		return { text: out.value, isError: out.closest('.panel').classList.contains('is-error') };
 	});
 	console.log('API    :', api);
 	console.log('RESULT :', JSON.stringify(result, null, 2));

@@ -77,6 +77,11 @@ export function swapPair(state: TranslatorState): void {
 	noteUse(state, 'target', state.target);
 }
 
+/** The panel facing this one. */
+export function otherSide(side: Side): Side {
+	return side === 'source' ? 'target' : 'source';
+}
+
 export function isSide(value: string | null | undefined): value is Side {
 	return value === 'source' || value === 'target';
 }

@@ -53,7 +53,7 @@ const check = (name, ok, detail = '') => {
 			{ timeout: 8000 }
 		);
 	};
-	const output = () => page.textContent('.panel.target .translation');
+	const output = () => page.inputValue('.panel.target .translation');
 
 	await page.addInitScript(() => { window.__requestCount = 0; });
 	await page.goto('http://127.0.0.1:8099/', { waitUntil: 'load' });
@@ -97,14 +97,14 @@ const check = (name, ok, detail = '') => {
 	});
 	await page.fill('.panel.source textarea', 'This one fails');
 	await settleAfter(checkpoint + 1);
-	check('server error explained', (await output()).includes('having trouble'), await output());
-	check('error styled', (await page.getAttribute('.panel.target .translation', 'class')).includes('is-error'));
+	check('server error explained', (await page.textContent('.panel.target .translation-error')).includes('having trouble'));
+	check('error styled', (await page.getAttribute('.panel.target', 'class')).includes('is-error'));
 	check('copy disabled on error', await page.isDisabled('#copy-btn'));
 
 	await page.fill('.panel.source textarea', '');
-	await page.waitForFunction(() => document.querySelector('.panel.target .translation').textContent === '');
+	await page.waitForFunction(() => document.querySelector('.panel.target .translation').value === '');
 	check('empty input clears output', (await output()) === '');
-	check('error styling cleared', !(await page.getAttribute('.panel.target .translation', 'class') || '').includes('is-error'));
+	check('error styling cleared', !(await page.getAttribute('.panel.target', 'class') || '').includes('is-error'));
 	check('copy disabled when empty', await page.isDisabled('#copy-btn'));
 
 	check('no page errors', errors.length === 0, errors.join(' | '));

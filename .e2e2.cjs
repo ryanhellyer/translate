@@ -24,7 +24,7 @@ const API = 'https://ai.hellyer.test';
 
 	const readOut = () => page.evaluate(() => {
 		const out = document.querySelector('.panel.target .translation');
-		return out.textContent;
+		return out.value;
 	});
 	const settle = () => page.waitForFunction(
 		() => !document.querySelector('.translator-card').classList.contains('is-translating'),

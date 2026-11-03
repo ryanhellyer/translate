@@ -80,8 +80,8 @@ function check(name, ok, detail = '') {
 	check('counter warns near limit', (await page.getAttribute('.panel.source .char-count', 'class')).includes('warn'));
 	await page.fill('.panel.source textarea', 'x');
 	await page.fill('.panel.source textarea', '');
-	await page.waitForFunction(() => document.querySelector('.panel.target .translation').textContent === '', null, { timeout: 5000 });
-	check('empty input clears output', (await page.textContent('.panel.target .translation')) === '');
+	await page.waitForFunction(() => document.querySelector('.panel.target .translation').value === '', null, { timeout: 5000 });
+	check('empty input clears output', (await page.inputValue('.panel.target .translation')) === '');
 	check('listen disabled with no output', await page.isDisabled('#listen-btn'));
 	check('copy disabled with no output', await page.isDisabled('#copy-btn'));
 
@@ -105,7 +105,7 @@ function check(name, ok, detail = '') {
 	/* Speech: headless Chromium has no voices, so the honest message appears. */
 	await page.fill('.panel.source textarea', 'Hi');
 	await page.waitForFunction(
-		() => document.querySelector('.panel.target .translation').textContent !== '',
+		() => document.querySelector('.panel.target .translation').value !== '',
 		null,
 		{ timeout: 5000 }
 	);

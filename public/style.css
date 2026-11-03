@@ -628,14 +628,20 @@ html[data-theme="dark"] {
 					flex: 1;
 					inline-size: 100%;
 					min-block-size: 200px;
+					padding: 0;
 					border: 0;
 					background: transparent;
+					appearance: none;
 					font-family: var(--body);
 					font-size: clamp(18px, 2.2vw, 22px);
 					line-height: 1.6;
 					color: var(--text);
 					caret-color: var(--input-caret);
 					resize: none;
+					overflow-wrap: anywhere;
+					/* The same gutter on both sides, so a line never wraps in
+					   one box and not the other. */
+					scrollbar-gutter: stable;
 					transition: color 0.3s;
 
 					&:focus {
@@ -645,19 +651,25 @@ html[data-theme="dark"] {
 					&::placeholder {
 						color: var(--text-muted);
 					}
+
+					/* "Detect language" is on, so the result box is locked. */
+					&.is-locked {
+						cursor: default;
+					}
 				}
 
-				& > p {
-					flex: 1;
-					font-size: clamp(18px, 2.2vw, 22px);
-					line-height: 1.6;
-					color: var(--text);
-					transition: color 0.3s;
+				/* A failed request stands in for the translation, unless the
+				   box is the one being typed in. */
+				&.target.is-error:not(.is-active) > textarea {
+					display: none;
+				}
 
-					&:empty::before {
-						content: "Translation appears here";
-						color: var(--text-muted);
-					}
+				& > .translation-error {
+					flex: 1;
+					margin: 0;
+					font-size: clamp(15px, 1.8vw, 17px);
+					line-height: 1.6;
+					color: var(--red);
 				}
 
 				& > .panel-footer {
@@ -1039,21 +1051,14 @@ html[data-theme="dark"] {
 		}
 	}
 
-	/* While the API call is out, the output dims a touch and stops
-	   intercepting clicks; the text stays readable rather than blanking. */
-	.translator-card.is-translating .panel.target > .translation {
+	/* While the API call is out, the side being replaced dims a touch; the
+	   side being typed in is left alone. */
+	.translator-card .panel.is-deriving > textarea {
 		opacity: 0.45;
 		transition: opacity 0.2s;
 	}
 
-	/* A failed request replaces the translation with an explanation, in the
-	   error colour, so it is not mistaken for a result. */
-	.translator-card .panel.target > .translation.is-error {
-		color: var(--red);
-		font-size: clamp(15px, 1.8vw, 17px);
-	}
-
-	html[data-theme="dark"] .translator-card .panel.target > .translation.is-error {
+	html[data-theme="dark"] .translator-card .panel.target > .translation-error {
 		color: var(--red-bright);
 	}
 
@@ -1250,20 +1255,22 @@ html[data-theme="dark"] {
 					resize: none;
 				}
 
-				& > p {
-					font-size: 18px;
+				& > .translation-error {
+					font-size: 15px;
 					line-height: 1.5;
 				}
 			}
 		}
 
+		/* Both boxes keep the same text width so a line never wraps in one
+		   place and not the other. The clear button sits in that margin. */
+		.translator-card .panels > .panel > textarea {
+			padding-inline-end: 40px;
+		}
+
 		/* The clear button moves to the top corner of the source box. */
 		.translator-card .panel.source {
 			position: relative;
-
-			& textarea {
-				padding-inline-end: 40px;
-			}
 
 			& > .panel-footer {
 				margin-block-start: 8px;
