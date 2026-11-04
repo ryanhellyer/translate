@@ -52,7 +52,7 @@ export type ReviewMode = 'analyse' | 'rewrite';
 export const CHECK_IDS = ['grammar', 'spelling', 'punctuation', 'style'] as const;
 export type CheckId = (typeof CHECK_IDS)[number];
 
-export const REWRITE_STYLES = ['formal', 'simple', 'playful'] as const;
+export const REWRITE_STYLES = ['formal', 'informal', 'simple', 'kitten'] as const;
 export type RewriteStyle = (typeof REWRITE_STYLES)[number];
 
 export interface ReviewExample {

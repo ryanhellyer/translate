@@ -183,9 +183,9 @@
 
 		<div class="panels" data-part="translate">
 			<div class="panel source">
-				<textarea aria-label="Source text" placeholder="Enter text" spellcheck="false" maxlength="5000">One man. One camera. Many exciting adventures.</textarea>
+				<textarea aria-label="Source text" placeholder="Enter text" spellcheck="false" maxlength="20000">One man. One camera. Many exciting adventures.</textarea>
 				<div class="panel-footer">
-					<span class="char-count">46 / 5,000</span>
+					<span class="char-count">46 / 20,000</span>
 					<div class="panel-actions">
 						<button type="button" class="icon-btn" id="clear-btn" aria-label="Clear text" hidden>
 							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -197,7 +197,7 @@
 				</div>
 			</div>
 			<div class="panel target has-output">
-				<textarea class="translation" aria-label="Translated text" placeholder="Translation appears here" spellcheck="false" maxlength="5000">Ein Mann. Eine Kamera. Viele aufregende Abenteuer.</textarea>
+				<textarea class="translation" aria-label="Translated text" placeholder="Translation appears here" spellcheck="false" maxlength="20000">Ein Mann. Eine Kamera. Viele aufregende Abenteuer.</textarea>
 				<p class="translation-error" role="alert" hidden></p>
 				<div class="panel-footer">
 					<div class="panel-actions">
@@ -236,15 +236,21 @@
 		     shows this only while one of those modes is selected. -->
 		<div class="review" data-part="review">
 			<div class="review-bar">
-				<span class="review-lang" id="review-language">German</span>
+				<button type="button" class="review-lang" id="review-select" aria-haspopup="true" aria-expanded="false" aria-controls="review-menu" aria-label="Choose the language to check or rewrite">
+					<span id="review-language">German</span>
+					<svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+						<path d="m6 9 6 6 6-6"></path>
+					</svg>
+				</button>
 				<span class="review-explain" id="review-explain">Explanations in English</span>
+				<div class="lang-menu" id="review-menu" aria-label="Choose the language to check or rewrite" hidden></div>
 			</div>
 
 			<div class="review-panels">
 				<div class="review-panel review-source">
-					<textarea class="review-input" id="review-input" maxlength="5000" spellcheck="false" lang="de" placeholder="Write your own text here" aria-label="Your text"></textarea>
+					<textarea class="review-input" id="review-input" maxlength="20000" spellcheck="false" lang="de" placeholder="Write your own text here" aria-label="Your text"></textarea>
 					<div class="review-foot">
-						<span class="char-count" id="review-count">0 / 5,000</span>
+						<span class="char-count" id="review-count">0 / 20,000</span>
 						<div class="panel-actions">
 							<button type="button" class="icon-btn" id="review-clear" aria-label="Clear text" hidden>
 								<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
@@ -376,8 +382,9 @@
 			<div class="style-options" role="group" aria-labelledby="rewrite-style-label">
 				<button type="button" class="style-option active" data-rewrite-style="natural" aria-pressed="true" title="Natural, idiomatic phrasing">Natural</button>
 				<button type="button" class="style-option" data-rewrite-style="formal" aria-pressed="false" title="Polished and proper">Formal</button>
+				<button type="button" class="style-option" data-rewrite-style="informal" aria-pressed="false" title="Relaxed, everyday language">Informal</button>
 				<button type="button" class="style-option" data-rewrite-style="simple" aria-pressed="false" title="Plain, easy-to-understand language">Simple</button>
-				<button type="button" class="style-option" data-rewrite-style="playful" aria-pressed="false" title="Lighter, more playful wording">Playful</button>
+				<button type="button" class="style-option" data-rewrite-style="kitten" aria-pressed="false" title="Sounds like a kitten wrote it">Kitten</button>
 			</div>
 		</div>
 	</div>

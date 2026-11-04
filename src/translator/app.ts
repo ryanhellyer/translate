@@ -65,7 +65,8 @@ export class TranslatorApp {
 			state,
 			clipboard,
 			speech,
-			toast
+			toast,
+			() => translator.languagesChanged()
 		);
 		review.init();
 		review.setMode(initial);

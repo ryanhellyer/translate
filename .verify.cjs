@@ -74,9 +74,9 @@ function check(name, ok, detail = '') {
 	check('clicking a tab swaps too', (await page.textContent('#source-tabs .lang-tab.from')) === 'German');
 
 	await page.fill('.panel.source textarea', 'Hello');
-	check('counter updates', (await page.textContent('.panel.source .char-count')) === '5 / 5,000');
+	check('counter updates', (await page.textContent('.panel.source .char-count')) === '5 / 20,000');
 	check('clear button shown', await page.isVisible('#clear-btn'));
-	await page.fill('.panel.source textarea', 'x'.repeat(4600));
+	await page.fill('.panel.source textarea', 'x'.repeat(19000));
 	check('counter warns near limit', (await page.getAttribute('.panel.source .char-count', 'class')).includes('warn'));
 	await page.fill('.panel.source textarea', 'x');
 	await page.fill('.panel.source textarea', '');

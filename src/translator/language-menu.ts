@@ -16,10 +16,33 @@ export interface LanguageMenuCallbacks {
 	onSelect(code: LanguageCode): void;
 }
 
+/**
+ * Where a menu lives. The translator builds one per side; the proofreading
+ * picker builds a third with its own element ids, using the same component.
+ */
+export interface LanguageMenuIds {
+	readonly menu: string;
+	readonly button: string;
+	readonly search: string;
+	readonly options: string;
+	readonly searchLabel: string;
+}
+
+function defaultIds(side: Side): LanguageMenuIds {
+	return {
+		menu: `${side}-menu`,
+		button: `${side}-select`,
+		search: `${side}-search`,
+		options: `${side}-options`,
+		searchLabel: `Search ${side} languages`
+	};
+}
+
 export class LanguageMenu {
 	private readonly side: Side;
 	private readonly catalog: LanguageCatalog;
 	private readonly callbacks: LanguageMenuCallbacks;
+	private readonly ids: LanguageMenuIds;
 
 	private readonly menu: HTMLElement;
 	private readonly button: HTMLElement;
@@ -27,13 +50,19 @@ export class LanguageMenu {
 	private readonly clearButton: HTMLButtonElement;
 	private readonly options: HTMLElement;
 
-	constructor(side: Side, catalog: LanguageCatalog, callbacks: LanguageMenuCallbacks) {
+	constructor(
+		side: Side,
+		catalog: LanguageCatalog,
+		callbacks: LanguageMenuCallbacks,
+		ids: LanguageMenuIds = defaultIds(side)
+	) {
 		this.side = side;
 		this.catalog = catalog;
 		this.callbacks = callbacks;
+		this.ids = ids;
 
-		this.menu = requireElementById<HTMLElement>(`${side}-menu`);
-		this.button = requireElementById<HTMLElement>(`${side}-select`);
+		this.menu = requireElementById<HTMLElement>(ids.menu);
+		this.button = requireElementById<HTMLElement>(ids.button);
 
 		const panel = document.createElement('div');
 		panel.className = 'lang-search';
@@ -41,10 +70,10 @@ export class LanguageMenu {
 
 		this.input = document.createElement('input');
 		this.input.type = 'text';
-		this.input.id = `${side}-search`;
+		this.input.id = ids.search;
 		this.input.className = 'lang-search-input';
 		this.input.placeholder = 'Search languages';
-		this.input.setAttribute('aria-label', `Search ${side} languages`);
+		this.input.setAttribute('aria-label', ids.searchLabel);
 		this.input.setAttribute('autocomplete', 'off');
 		this.input.setAttribute('spellcheck', 'false');
 
@@ -57,7 +86,7 @@ export class LanguageMenu {
 
 		this.options = document.createElement('div');
 		this.options.className = 'lang-options';
-		this.options.id = `${side}-options`;
+		this.options.id = ids.options;
 
 		panel.append(this.input, this.clearButton);
 		this.menu.replaceChildren(panel, this.options);

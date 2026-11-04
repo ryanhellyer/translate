@@ -28,6 +28,11 @@ between visits:
 - **Rewrite** — the same text, rewritten to sound more natural, with the
   changed phrasing marked and a note on what changed.
 
+The language being analysed or rewritten is chosen with the pill above the
+proofreading boxes. It is the translator's target side, so a change carries
+over to Translate (and vice versa), and analyses are always explained in the
+translator's source language.
+
 Analyse and Rewrite are new, so their endpoints are not live yet. The app
 expects:
 
@@ -52,7 +57,7 @@ POST {api}/v1/analyses
    }
 
 POST {api}/v1/rewrites
-{ "language": "German", "text": "...", "style": "formal" }   // style optional
+{ "language": "German", "text": "...", "style": "formal" }   // optional; formal, informal, simple or kitten
 -> {
      "rewrite": "...",
      "changes": [{
@@ -68,8 +73,10 @@ POST {api}/v1/rewrites
 side) and `explanation_language` is the visitor's own language (the source
 side), so the default English → German pair means German text with English
 notes. Offsets are UTF-16 code units into the exact text sent, which is what
-`String.prototype.slice` uses in the browser. `checks` and `style` (and every
-field of an issue apart from `start`, `end` and `explanation`) are optional;
+`String.prototype.slice` uses in the browser. `checks` and `style` are
+optional; rewrite styles are `formal`, `informal`, `simple` and `kitten`, and
+omitting `style` asks for natural phrasing. Every field of an issue apart from
+`start`, `end` and `explanation` is optional too;
 `src/translator/review-model.ts` validates the answers and drops anything it
 cannot place. Both endpoints need the same CORS treatment as
 `/v1/translations`.

@@ -83,8 +83,8 @@ export class ReviewView {
 
 	updateCounter(): void {
 		const length = this.input.value.length;
-		this.counter.textContent = `${length.toLocaleString('en-NZ')} / 5,000`;
-		this.counter.classList.toggle('warn', length > 4500);
+		this.counter.textContent = `${length.toLocaleString('en-NZ')} / 20,000`;
+		this.counter.classList.toggle('warn', length > 18000);
 		this.clearButton.hidden = length === 0;
 	}
 

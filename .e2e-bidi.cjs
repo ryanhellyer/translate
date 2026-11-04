@@ -64,7 +64,7 @@ function assert(cond, message) {
   assert(last.from === 'German' && last.to === 'English', 'reverse request is German>English');
   await page.waitForTimeout(1200);
   assert(requests.length === before + 1, 'programmatic write triggered no extra request');
-  assert(await page.textContent('.panel.source .char-count') === '13 / 5,000', 'counter follows the derived text');
+  assert(await page.textContent('.panel.source .char-count') === '13 / 20,000', 'counter follows the derived text');
 
   const before2 = requests.length;
   await left.click();

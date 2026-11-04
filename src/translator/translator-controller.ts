@@ -144,6 +144,15 @@ export class TranslatorController {
 		this.translate();
 	}
 
+	/**
+	 * Re-renders the language pair after another mode changed it — the
+	 * proofreading picker shares this state — and persists the new choice.
+	 */
+	languagesChanged(): void {
+		this.render();
+		this.save();
+	}
+
 	/* ---------- Wiring ---------- */
 
 	private wireEvents(): void {

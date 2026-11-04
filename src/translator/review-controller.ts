@@ -15,6 +15,7 @@ import { readStorage, writeStorage } from '../ui/dom.js';
 import { ICON_DONE } from '../ui/icons.js';
 import type { Toast } from '../ui/toast.js';
 import type { LanguageCatalog } from './language-catalog.js';
+import { LanguageMenu } from './language-menu.js';
 import { AUTO_CODE } from './languages.js';
 import type { Mode } from './mode-controller.js';
 import {
@@ -30,7 +31,7 @@ import {
 import { ReviewError, type ReviewService } from './review-service.js';
 import type { ReviewView } from './review-view.js';
 import type { SpeechService } from './speech-service.js';
-import type { TranslatorState } from './translator-state.js';
+import { applySelection, type TranslatorState } from './translator-state.js';
 
 /** Wait this long after the last keystroke before asking the API. */
 const TYPING_PAUSE_MS = 600;
@@ -45,6 +46,8 @@ export class ReviewController {
 	private readonly clipboard: Clipboard;
 	private readonly speech: SpeechService;
 	private readonly toast: Toast;
+	private readonly onLanguageChange: () => void;
+	private readonly languageMenu: LanguageMenu;
 
 	private mode: Mode = 'translate';
 	private checks = new Set<CheckId>(CHECK_IDS);
@@ -66,7 +69,8 @@ export class ReviewController {
 		state: TranslatorState,
 		clipboard: Clipboard,
 		speech: SpeechService,
-		toast: Toast
+		toast: Toast,
+		onLanguageChange: () => void
 	) {
 		this.view = view;
 		this.service = service;
@@ -75,10 +79,21 @@ export class ReviewController {
 		this.clipboard = clipboard;
 		this.speech = speech;
 		this.toast = toast;
+		this.onLanguageChange = onLanguageChange;
 		this.copyIconHtml = {
 			analyse: view.analyseCopy.innerHTML,
 			rewrite: view.rewriteCopy.innerHTML
 		};
+		this.languageMenu = new LanguageMenu('target', catalog, {
+			isActive: (code) => this.state.target === code,
+			onSelect: (code) => this.selectLanguage(code)
+		}, {
+			menu: 'review-menu',
+			button: 'review-select',
+			search: 'review-search',
+			options: 'review-options',
+			searchLabel: 'Search languages'
+		});
 	}
 
 	/* ---------- Start-up ---------- */
@@ -125,6 +140,19 @@ export class ReviewController {
 		requireButton('next-issue').addEventListener('click', () => this.stepIssue(1));
 		requireButton('close-insight').addEventListener('click', () => this.view.selectIssue(0));
 
+		requireButton('review-select').addEventListener('click', () => this.toggleLanguageMenu());
+
+		document.addEventListener('click', (event) => {
+			const target = event.target;
+			if (!(target instanceof Element)) return;
+			if (target.closest('#review-menu') || target.closest('#review-select')) return;
+			this.languageMenu.close();
+		});
+
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape') this.languageMenu.close();
+		});
+
 		/* A flag click selects its explanation. Delegated so it survives
 		   every re-render of the annotated text. */
 		this.view.analyseText.addEventListener('click', (event) => {
@@ -144,11 +172,50 @@ export class ReviewController {
 		return [...document.querySelectorAll<HTMLButtonElement>('.style-option[data-rewrite-style]')];
 	}
 
+	/* ---------- Language ---------- */
+
+	private toggleLanguageMenu(): void {
+		const wasOpen = this.languageMenu.isOpen;
+		this.languageMenu.close();
+		if (!wasOpen) this.languageMenu.open();
+	}
+
+	/**
+	 * The language being checked or rewritten is the translator's target
+	 * side, so choosing one here also updates the pair shown in Translate.
+	 * Changing it invalidates any answer already on screen.
+	 */
+	private selectLanguage(code: string): void {
+		this.languageMenu.close();
+		if (code === this.state.target) return;
+		if (!applySelection(this.state, 'target', code)) return;
+
+		this.cancel();
+		this.stopSpeech();
+		this.analysis = null;
+		this.rewrite = null;
+		this.analyseKey = null;
+		this.rewriteKey = null;
+
+		this.renderLanguages();
+		this.onLanguageChange();
+
+		if (this.mode === 'translate') return;
+
+		if (this.view.text().trim() === '') {
+			if (this.mode === 'analyse') this.view.showAnalysisEmpty();
+			else this.view.showRewriteEmpty();
+			return;
+		}
+		this.run();
+	}
+
 	/* ---------- Mode ---------- */
 
 	/** Called whenever the card switches mode. */
 	setMode(mode: Mode): void {
 		this.mode = mode;
+		this.languageMenu.close();
 
 		if (mode === 'translate') {
 			this.cancel();

@@ -233,17 +233,43 @@ function check(name, ok, detail = '') {
 	check('change list shown', (await page.locator('#rewrite-change-list li').count()) === 2);
 	check('what changed explains phrasing', (await page.textContent('#rewrite-changes')).includes('Stronger wording'));
 
-	await page.click('.style-option[data-rewrite-style="formal"]');
-	await page.waitForTimeout(500);
-	check('style change re-rewrites', requests.rewrites.at(-1)?.style === 'formal', JSON.stringify(requests.rewrites.at(-1)));
+	check('five rewrite styles', (await page.locator('.style-option[data-rewrite-style]').count()) === 5);
+	check('rewrite style names match the translator', JSON.stringify(await page.locator('.style-option[data-rewrite-style]').allTextContents()) === JSON.stringify(['Natural', 'Formal', 'Informal', 'Simple', 'Kitten']));
 
-	/* --- Back to Translate --- */
+	await page.click('.style-option[data-rewrite-style="informal"]');
+	await page.waitForTimeout(500);
+	check('style change re-rewrites', requests.rewrites.at(-1)?.style === 'informal', JSON.stringify(requests.rewrites.at(-1)));
+
+	/* --- The proofreading language picker --- */
+	await page.click('#review-select');
+	check('language menu opens', await page.locator('#review-menu').isVisible());
+	check('every language is offered', (await page.locator('#review-menu .lang-option').count()) > 50);
+	await page.fill('#review-search', 'french');
+	await page.waitForTimeout(100);
+	await page.click('#review-menu .lang-option');
+	await page.waitForTimeout(600);
+	check('choosing a language re-runs the rewrite', requests.rewrites.at(-1)?.language === 'French', JSON.stringify(requests.rewrites.at(-1)?.language));
+	check('language label follows the choice', (await page.textContent('#review-language')) === 'French');
+	check('menu closes after choosing', await page.locator('#review-menu').isHidden());
+
+	/* --- Back to Translate, with the new pair --- */
 	await page.click('.mode-option[data-mode="translate"]');
 	check('translate view returns', await page.locator('.panels').isVisible());
 	check('review hides again', !(await page.locator('.review').isVisible()));
+	check('translator target follows the proofreading choice', (await page.textContent('#target-tabs .lang-tab.into')) === 'French');
 	await page.fill('.panel.source textarea', 'Good morning');
 	await page.waitForFunction(() => document.querySelector('.panel.target .translation').value.includes('Good morning'), null, { timeout: 8000 });
-	check('translator still works', (await page.inputValue('.panel.target .translation')).includes('[German] Good morning'));
+	check('translator still works', (await page.inputValue('.panel.target .translation')).includes('[French] Good morning'));
+
+	/* Reset to German from the proofreading picker. */
+	await page.click('.mode-option[data-mode="analyse"]');
+	await page.waitForTimeout(300);
+	await page.click('#review-select');
+	await page.fill('#review-search', 'german');
+	await page.waitForTimeout(100);
+	await page.click('#review-menu .lang-option');
+	await page.waitForTimeout(600);
+	check('back to German from the picker', (await page.textContent('#review-language')) === 'German');
 
 	/* --- Persistence --- */
 	const translationsBeforeReload = requests.translations.length;
